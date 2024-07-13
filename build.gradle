@@ -1,0 +1,54 @@
+import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
+
+plugins {
+    id 'groovy'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
+    id 'org.gradlex.extra-java-module-info' version '1.8'
+}
+
+group = 'com.github.artyomcool'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+javafx {
+    version = "21"
+    modules = [ 'javafx.graphics', 'javafx.controls']
+}
+
+configurations
+        .matching(it -> it.name.contains("downloadSources"))
+        .configureEach {
+            attributes {
+                OperatingSystem os = DefaultNativePlatform.currentOperatingSystem
+                attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_RUNTIME))
+                attribute(OperatingSystemFamily.OPERATING_SYSTEM_ATTRIBUTE, objects.named(OperatingSystemFamily, os.toFamilyName()))
+                attribute(MachineArchitecture.ARCHITECTURE_ATTRIBUTE, objects.named(MachineArchitecture, DefaultNativePlatform.currentArchitecture.getName()))
+            }
+        }
+
+extraJavaModuleInfo {
+    automaticModule('com.github.quickhull3d:quickhull3d', 'com.github.quickhull3d')
+    automaticModule('org.slf4j:slf4j-api', 'slf4j.api')
+}
+
+dependencies {
+    implementation 'org.apache.groovy:groovy:4.0.14'
+    implementation 'org.apache.commons:commons-geometry-euclidean:1.0'
+    implementation 'com.github.quickhull3d:quickhull3d:1.0.0'
+
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+    useJUnitPlatform()
+}
