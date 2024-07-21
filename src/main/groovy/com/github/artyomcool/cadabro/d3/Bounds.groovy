@@ -3,8 +3,8 @@ package com.github.artyomcool.cadabro.d3
 import org.apache.commons.geometry.euclidean.threed.Vector3D
 
 class Bounds {
-    private final Vector3D min
-    private final Vector3D max
+    final Vector3D min
+    final Vector3D max
 
     Bounds(Vector3D min, Vector3D max) {
         this.min = min

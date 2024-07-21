@@ -215,6 +215,24 @@ abstract class CADObject3D {
         fromTree(x, y, z) { tree }
     }
 
+    CADObject3D center(boolean withX = true, boolean withY = true, boolean withZ = true) {
+        def tree = asTree().copy()
+        def size = bounds().center()
+        fromTree(withX ? -size.x : 0, withY ? -size.y : 0, withZ ? -size.z : 0) { tree }
+    }
+
+    CADObject3D start(boolean withX = true, boolean withY = true, boolean withZ = true) {
+        def tree = asTree().copy()
+        def size = bounds().min
+        fromTree(withX ? -size.x : 0, withY ? -size.y : 0, withZ ? -size.z : 0) { tree }
+    }
+
+    CADObject3D end(boolean withX = true, boolean withY = true, boolean withZ = true) {
+        def tree = asTree().copy()
+        def size = bounds().max
+        fromTree(withX ? -size.x : 0, withY ? -size.y : 0, withZ ? -size.z : 0) { tree }
+    }
+
     CADObject3D postProcess(Consumer<BSPTree> consumer) {
         postProcess = postProcess.andThen(consumer)
         return this
@@ -249,11 +267,57 @@ abstract class CADObject3D {
         return bounds().size().y
     }
 
+    double getDepth() {
+        return bounds().size().z
+    }
+
+    double getMinX() {
+        return bounds().min.x
+    }
+
+    double getMinY() {
+        return bounds().min.y
+    }
+
+    double getMinZ() {
+        return bounds().min.z
+    }
+
+    double getMaxX() {
+        return bounds().max.x
+    }
+
+    double getMaxY() {
+        return bounds().max.y
+    }
+
+    double getMaxZ() {
+        return bounds().max.z
+    }
+
+    double getCenterX() {
+        return bounds().center().x
+    }
+
+    double getCenterY() {
+        return bounds().center().y
+    }
+
+    double getCenterZ() {
+        return bounds().center().z
+    }
+
     BSPTree asTree() {
         if (cachedTree == null) {
-            def tree = toTree()
+            def tree
+            try {
+                tree = toTree()
+            } catch (Throwable t) {
+                t.addSuppressed(stack)
+                throw t
+            }
             if (tree == null) {
-                throw new IllegalArgumentException()
+                throw new IllegalArgumentException(stack)
             }
             postProcess.accept(tree)
             cachedTree = tree

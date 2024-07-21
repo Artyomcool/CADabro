@@ -1,6 +1,5 @@
 package com.github.artyomcool.cadabro
 
-import com.github.artyomcool.cadabro.d2.CADObject2D
 import javafx.application.Application
 import javafx.scene.Scene
 import javafx.scene.layout.Pane
@@ -10,6 +9,9 @@ import javafx.scene.shape.MoveTo
 import javafx.scene.shape.Path
 import javafx.scene.shape.PathElement
 import javafx.stage.Stage
+import org.apache.commons.geometry.euclidean.twod.AffineTransformMatrix2D
+
+import static com.github.artyomcool.cadabro.d2.CADObject2D.draw
 
 class Plain extends Application {
 
@@ -21,29 +23,42 @@ class Plain extends Application {
     void start(Stage stage) throws Exception {
         List<PathElement> elements = new ArrayList<>()
 
-        def draw = CADObject2D.draw()
-        def obj = draw
-                .smooth()
-                .dxy(200, 0)
-                .smooth()
-                .dxy(0, 200)
-                .smooth()
-                //.dxy(-200, -50)
-                //.smooth()
-        //.close()
+        double extra = 2
+        double wall = 2
+        double widthExact = 45
+        double heightExact = 101
+
+        double width = widthExact + extra
+        double height = heightExact + extra
+
+        def drawer = draw(0, 0).go(width)
+                .cw().go(height)
+                .cw().go(9)
+                .r(45).go((width - 9) * Math.sqrt(2))
+
+        def tree = drawer.close().asTree()
+        def t2 = tree.copy().tap { transform(AffineTransformMatrix2D.createRotation(Math.toRadians(-90)).scale(1, -1).translate(0, height - width + 10)) }
+        tree.transform(AffineTransformMatrix2D.createTranslation(width + 25, 0))
+        tree.union(draw(0,0).go(64).cw().go(55).cw().go(64).close().asTree())
+        tree.union(t2)
+        tree.transform(AffineTransformMatrix2D.createTranslation(100, 100))
+
 
         List<Path> paths = []
 
-        double px=0, py=0
-        for (final def c in obj.close().asTree().toConvex()) {
-            for (def pi = 0; pi < c.vertices.size(); pi++) {
-                def p = c.vertices.get(pi)
-                def n = c.vertices.get((pi + 1) % c.vertices.size())
+        double px = 0, py = 0
 
-                def path = new Path(new MoveTo(p.x, p.y), new LineTo(n.x, n.y))
-                path.setStroke(Color.hsb(360 * pi / c.vertices.size(), 1, 1))
+        for (final def c in tree.boundaryPaths) {
+            for (final def e in c.elements) {
+                def path = new Path(new MoveTo(e.startPoint.x, e.startPoint.y), new LineTo(e.endPoint.x, e.endPoint.y))
                 paths.add(path)
             }
+        }
+
+        def pp = 0
+        for (def p in paths) {
+            p.setStroke(Color.hsb(360 * pp / paths.size(), 1, 1))
+            pp++
         }
 
         def pane = new Pane(paths.toArray(new javafx.scene.Node[paths.size()]))

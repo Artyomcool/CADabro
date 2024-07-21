@@ -7,6 +7,11 @@ import org.apache.commons.geometry.euclidean.twod.Vector2D
 import org.apache.commons.geometry.euclidean.twod.path.LinePath
 import org.apache.commons.numbers.core.Precision
 
+import java.awt.*
+import java.awt.font.FontRenderContext
+import java.awt.geom.PathIterator
+import java.util.List
+
 abstract class CADObject2D {
     public static final Precision.DoubleEquivalence e = Precision.doubleEquivalenceOfEpsilon(1e-8)
 
@@ -33,8 +38,48 @@ abstract class CADObject2D {
         return new Drawer().tap { points.add(V.of(x, y)) }
     }
 
+    static CADObject2D text(String text, Bounds2D bounds) {
+        FontRenderContext frc = new FontRenderContext(null, true, true)
+        def glyphVector = new Font("Arial", Font.BOLD, 4).createGlyphVector(frc, text)
+        def iterator = glyphVector.outline.getPathIterator(null, 0.1)
+        def tree2D = RegionBSPTree2D.empty()
+        LinePath.Builder builder = null
+
+        double[] coords = new double[2]
+        while (!iterator.isDone()) {
+            int segmentType = iterator.currentSegment(coords);
+            switch (segmentType) {
+                case PathIterator.SEG_MOVETO:
+                    builder = LinePath.builder(e)
+                    builder.append(Vector2D.of(coords[0], coords[1]))
+                    break
+                case PathIterator.SEG_LINETO:
+                    builder.append(Vector2D.of(coords[0], coords[1]))
+                    break;
+                case PathIterator.SEG_CLOSE:
+                    def linePath = builder.close()
+                    tree2D.insert(linePath)
+                    builder = null
+                    break;
+            }
+            iterator.next();
+        }
+
+        fromTree tree2D
+    }
+
+    static CADObject2D fromTree(RegionBSPTree2D tree2D) {
+        new CADObject2D() {
+            @Override
+            protected RegionBSPTree2D toTree() {
+                return tree2D
+            }
+        }
+    }
+
     static class Drawer {
         List<V> points = []
+        double direction = 0
 
         Drawer l(double x, double y) {
             points.add(V.of(x, y))
@@ -61,13 +106,38 @@ abstract class CADObject2D {
             return dxy(0, dy)
         }
 
+        Drawer cw() {
+            direction += 90
+            if (direction >= 360) {
+                direction -= 360
+            }
+            this
+        }
+
+        Drawer r(double r) {
+            direction += r
+            this
+        }
+
+        Drawer ccw() {
+            direction -= 90
+            if (direction < 0) {
+                direction += 360
+            }
+            this
+        }
+
+        Drawer go(double distance) {
+            dxy(Math.cos(Math.toRadians(direction)) * distance, Math.sin(Math.toRadians(direction)) * distance)
+        }
+
         Drawer smooth(double r = 10, int segments = 16) {
             points.last.r = r
             points.last.segments = segments
             return this
         }
 
-        CADObject2D close() {
+        CADObject2D close(boolean reverse = false) {
             List<Vector2D> result = new ArrayList<>()
             def add = (double x, double y) -> {
                 result.add(Vector2D.of(x, y))
@@ -143,12 +213,10 @@ abstract class CADObject2D {
                         dt = theta2 - theta1;
                     }
 
-                    System.out.println(Math.toDegrees(theta1) + " " + Math.toDegrees(theta2))
                     if (dt < 0) {
                         //dt += Math.PI * 2
                     }
 
-                    System.out.println(Math.toDegrees(dt))
                     double deltaTheta = dt / vp.segments
 
                     for (int j = vp.segments; j >= 0; j--) {
@@ -163,6 +231,9 @@ abstract class CADObject2D {
             return new CADObject2D() {
                 @Override
                 protected RegionBSPTree2D toTree() {
+                    if (reverse) {
+                        result.reverse(true)
+                    }
                     return LinePath.fromVertexLoop(result, e).toTree()
                 }
             }

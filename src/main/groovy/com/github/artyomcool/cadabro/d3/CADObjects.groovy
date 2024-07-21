@@ -23,7 +23,7 @@ class CADObjects {
     static CADObject3D sphere(double r = 0.5) {
         def sphere = Sphere.from(Vector3D.ZERO, r, e)
 
-        fromTree { from(sphere.toTree(4)) }
+        fromTree(r, r, r) { from(sphere.toTree(4)) }
     }
 
     static CADObject3D cube(double xyz = 1) {
@@ -36,6 +36,36 @@ class CADObjects {
                 .build()
 
         return fromTree(x / 2, y / 2, z / 2) { from(parallelepiped.toTree()) }
+    }
+
+    static CADObject3D outlineXYCube(CADObject3D figure, double wall = 0, double r = 0) {
+        def bounds = figure.bounds()
+        def size = bounds.size()
+        rcube(wall + size.x + wall, wall + size.y + wall, size.z, r)
+                .dxy(-wall)
+                .dxyz(bounds.min.x, bounds.min.y, bounds.min.z) - figure
+    }
+
+    static CADObject3D rcut(double r, double h) {
+        cube(r, r, h) - cylinder(h, r).dxy(-r)
+    }
+
+    static CADObject3D rcube(double xyz, double r = 2) {
+        rcube(xyz, xyz, xyz, r)
+    }
+
+    static CADObject3D rcube(double x, double y, double z, double r = 2, boolean x0y0 = true, boolean x1y0 = true, boolean x1y1 = true, boolean x0y1 = true) {
+        if (r == 0) {
+            return cube(x, y, z)
+        }
+        return extrude(
+                draw(0, 0).smooth(r, x0y0 ? 16 : 0)
+                        .dx(x).smooth(r, x1y0 ? 16 : 0)
+                        .dy(y).smooth(r, x1y1 ? 16 : 0)
+                        .dx(-x).smooth(r, x0y1 ? 16 : 0)
+                        .close(),
+                z
+        )
     }
 
     static CADObject3D cylinder(double h = 1, double rb = 1, double rt = rb) {

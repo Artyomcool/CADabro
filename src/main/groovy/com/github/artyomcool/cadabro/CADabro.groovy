@@ -1,7 +1,6 @@
 package com.github.artyomcool.cadabro
 
 import com.github.artyomcool.cadabro.d3.BSPTree
-import com.github.artyomcool.cadabro.d3.CADObject3D
 import javafx.application.Application
 import javafx.event.EventHandler
 import javafx.scene.DepthTest
@@ -15,97 +14,17 @@ import javafx.scene.input.MouseEvent
 import javafx.scene.paint.Color
 import javafx.scene.paint.PhongMaterial
 import javafx.scene.shape.Box
+import javafx.scene.shape.DrawMode
 import javafx.scene.shape.MeshView
 import javafx.scene.shape.TriangleMesh
 import javafx.stage.Stage
+import models.dnd.Drizzt
 
 import java.nio.file.Path
 
-import static com.github.artyomcool.cadabro.d3.CADObjects.*
-
 class CADabro extends Application {
 
-    static CADObject3D miniHolder() {
-        def tw = 175
-        def th = 175
-
-        def big = new MiniHolder(84, 84, 72).tap {
-            holdThickness = 2
-            cutDelta = 1
-            bridgeSize = 8
-        }
-
-        def mid = new MiniHolder(56, 57, 48.5).tap {
-            holdThickness = 1.6
-            cutDelta = 1
-            bridgeSize = 6
-        }
-
-        def small = new MiniHolder(35, 35, 25).tap {
-            bridgeSize = 3
-            extraShift = 0.5
-        }
-
-        def tiny = new MiniHolder(28, 30, 20).tap {
-            bridgeSize = 2
-            extraShift = 0.5
-        }
-
-        def figures = []
-
-        figures << [x: 0, y: 0, r: 0, m: big.connectRight(mid)]
-        figures << [x: big.width, y: 0, r: 0, m: mid.connectLeft(big).connectRight(0, 0, true)]
-        figures << [x: big.width, y: mid.height, r: 180, m: mid.connectRight(tiny).connectTop(small).connectLeft(0, 0, true)]
-
-        figures << [x: tw - small.height, y: 0, r: 90, m: small]
-        figures << [x: tw - small.height, y: small.height, r: 90, m: small]
-        figures << [x: tw - small.height, y: small.height * 2, r: 90, m: small.connectRight(tiny)]
-        figures << [x: tw - small.height, y: small.height * 3, r: 90, m: tiny {
-            width = small.width
-            height = small.height
-        }.connectLeft(small).connectRight(0, 0, true)]
-
-        figures << [x: 0, y: big.height, r: 180, m: tiny]
-        figures << [x: tiny.width, y: big.height, r: 180, m: tiny]
-        figures << [x: tiny.width * 2, y: big.height, r: 180, m: tiny { extraCorners = 3 }.connectLeft(mid)]
-
-        figures << [x: 0, y: th - small.height, r: 180, m: small]
-        figures << [x: small.height, y: th - small.height, r: 180, m: small]
-        figures << [x: small.height * 2, y: th - small.height, r: 180, m: small]
-        figures << [x: small.height * 3, y: th - small.height, r: 180, m: small]
-        figures << [x: small.height * 4, y: th - small.height, r: 180, m: small]
-
-        figures << [x: small.height * 0, y: mid.height * 2, r: 0, m: small { width *= 2 }]
-        figures << [x: big.width - tiny.width, y: mid.height * 2, r: 0, m: small { width = tiny.width; extraCorners = 1}.connectTop(tiny).connectRight(small).connectRightTop(mid)]
-        figures << [x: big.width, y: mid.height * 2, r: 0, m: small { width = mid.width; deltaX = -7 }.connectTop(mid).connectRight(0, 0, true)]
-
-        def move = (f, m) -> {
-            m.dxy(-f.m.width / 2, -f.m.height / 2).rz(f.r).dxy(f.m.width / 2, f.m.height / 2).dxy(f.x, f.y)
-        }
-
-        (
-                union {
-                    add cube(tw, th, 1).color(Color.GREEN)
-                    for (def f in figures) {
-                        add move(f, f.m.renderStrengthWall())
-                    }
-                } - union {
-                    for (def f in figures) {
-                        add move(f, f.m.renderCuts())
-                    }
-                } + union {
-                    for (def f in figures) {
-                        add move(f, f.m.renderHolder())
-                    }
-                } + diff {
-                    add extrude(rsquare(tw, th), 70)
-                    add extrude(rsquare(tw - 2, th - 2), 70).dxy(1, 1)
-                    add cube(tw, th, 70).dxyz(16, 16, 16)
-                } & extrude(rsquare(tw, th), 70)
-        ).tap {
-            println bounds().size()
-        }
-    }
+    RenderCollection collection = Drizzt.render()
 
     final Group root = new Group()
     final Form axisGroup = new Form()
@@ -240,8 +159,16 @@ class CADabro extends Application {
                         moleculeGroup.setVisible(!moleculeGroup.isVisible())
                         break
                     case KeyCode.T:
-                        def tree = miniHolder().asTree()
-                        STLWriter.writeToFile(tree.triangles(), Path.of("e.stl"))
+                        double dx = 0
+                        List<BSPTree.Triangle> triangles = []
+                        for (def render in collection.renders) {
+                            if (!render.renderOnly) {
+                                def obj = render.obj.center().dxyzBy(0.5).dx(dx)
+                                triangles.addAll(obj.asTree().triangles())
+                                dx = obj.bounds().max.x + 5
+                            }
+                        }
+                        STLWriter.writeToFile(triangles, Path.of("e.stl"))
                         break
                 }
             }
@@ -249,34 +176,41 @@ class CADabro extends Application {
     }
 
     private void buildFigure() {
-        def tree = miniHolder()
 
         Map<Color, Integer> colors = [:]
 
         def dc = Color.color(0.4, 0.1, 1, 1)
         colors[dc] = 0
 
-        def triangles = tree.asTree().triangles()
-        for (def tr in triangles) {
-            if (tr.hasProperty("color") && tr.color != null) {
-                colors.putIfAbsent(tr.color, colors.size())
-            }
-        }
-        def image = new WritableImage(2 * colors.size(), 2)
-        for (def ce in colors.entrySet()) {
-            def i = ce.value
-            def c = ce.key
-            for (int x = 0; x < 2; x++) {
-                for (int y = 0; y < 2; y++) {
-                    image.pixelWriter.setColor(i * 2 + x, y, c)
+        def trianglesSolid = []
+        def trianglesWires = []
+
+        for (def r in collection.renders) {
+            def t = r.obj.asTree().triangles()
+            (r.wiresOnly ? trianglesWires : trianglesSolid).addAll(t)
+            for (def tr in t) {
+                {
+                    if (tr.hasProperty("color") && tr.color != null) {
+                        colors.putIfAbsent(tr.color, colors.size())
+                    }
                 }
             }
         }
 
-        TriangleMesh mesh = new TriangleMesh()
+        def image = new WritableImage(2 * colors.size(), 2)
+        for (def ce in colors.entrySet()) {
+            for (int x = 0; x < 2; x++) {
+                for (int y = 0; y < 2; y++) {
+                    image.pixelWriter.setColor(ce.value * 2 + x, y, ce.key)
+                }
+            }
+        }
+
+        TriangleMesh solidMesh = new TriangleMesh()
+        TriangleMesh wiredMesh = new TriangleMesh()
         int i = 0
-        for (BSPTree.Triangle tr in triangles) {
-            mesh.getPoints().addAll(
+        for (BSPTree.Triangle tr in trianglesSolid) {
+            solidMesh.getPoints().addAll(
                     (float) tr.p2.x,
                     (float) tr.p2.z,
                     (float) tr.p2.y,
@@ -288,25 +222,54 @@ class CADabro extends Application {
                     (float) tr.p3.y
             )
             int ci = colors[tr.color ?: dc]
-            mesh.getTexCoords().addAll(
+            solidMesh.getTexCoords().addAll(
                     (float) ((1 + ci * 2) / image.width), 0.5f,
                     (float) ((1 + ci * 2) / image.width), 0.5f,
                     (float) ((1 + ci * 2) / image.width), 0.5f,
             )
-            mesh.getFaces().addAll(
+            solidMesh.getFaces().addAll(
                     i, i++,
                     i, i++,
                     i, i++
             )
         }
-        MeshView oxygenSphere = new MeshView()
-        PhongMaterial material = new PhongMaterial()
-        material.setDiffuseMap(image)
-        oxygenSphere.setMaterial(material)
-        //oxygenSphere.drawMode = DrawMode.LINE
-        oxygenSphere.mesh = mesh
 
-        moleculeGroup.getChildren().add(oxygenSphere)
+        i = 0
+        for (BSPTree.Triangle tr in trianglesWires) {
+            wiredMesh.getPoints().addAll(
+                    (float) tr.p2.x,
+                    (float) tr.p2.z,
+                    (float) tr.p2.y,
+                    (float) tr.p1.x,
+                    (float) tr.p1.z,
+                    (float) tr.p1.y,
+                    (float) tr.p3.x,
+                    (float) tr.p3.z,
+                    (float) tr.p3.y
+            )
+            int ci = colors[tr.color ?: dc]
+            wiredMesh.getTexCoords().addAll(
+                    (float) ((1 + ci * 2) / image.width), 0.5f,
+                    (float) ((1 + ci * 2) / image.width), 0.5f,
+                    (float) ((1 + ci * 2) / image.width), 0.5f,
+            )
+            wiredMesh.getFaces().addAll(
+                    i, i++,
+                    i, i++,
+                    i, i++
+            )
+        }
+        MeshView solidMeshView = new MeshView()
+        solidMeshView.setMaterial(new PhongMaterial().tap { diffuseMap = image })
+        solidMeshView.mesh = solidMesh
+
+        MeshView wiredMeshView = new MeshView()
+        wiredMeshView.setMaterial(new PhongMaterial().tap { diffuseMap = image })
+        wiredMeshView.mesh = wiredMesh
+        wiredMeshView.drawMode = DrawMode.LINE
+
+        moleculeGroup.getChildren().add(solidMeshView)
+        moleculeGroup.getChildren().add(wiredMeshView)
 
         world.getChildren().addAll(moleculeGroup)
     }

@@ -20,7 +20,7 @@ class MiniHolder {
     double extraShift = 1
     double extraCorners = 5
     double bgHeight = 1
-    double hole = 0
+    double trampoline = 0
     double cutAngle = 20
     double deltaX = 0
     double bridgeSize = 2
@@ -99,7 +99,7 @@ class MiniHolder {
     }
 
     def render() {
-        renderBg() + renderStrengthWall() - renderCuts() + renderHolder()
+        renderBg() + renderStrengthWall() - renderCuts() + renderHolder() + renderTrampoline()
     }
 
     def renderBg() {
@@ -119,7 +119,7 @@ class MiniHolder {
                                 .smooth(topSmoothRadius, 4)
                                 .dx(topSmoothRadius)
                                 .dy(fullHeight)
-                                .dx(radiusTop - radiusBottom)
+                                .dx(radiusBottom - radiusExternal)
                                 .dy(-bgHeight)
                                 .close()
                 ).rx(-90).rz(90 + cutAngle / 2)
@@ -222,6 +222,24 @@ class MiniHolder {
             )
 
             return (lh + th + rh + cube(width - extraCorners * 2, strengthWall - extraShift, z).dxy(extraCorners, extraShift)).dz(bgHeight)
+        }
+    }
+
+    def renderTrampoline() {
+        if (trampoline) {
+            dxy(deltaX + width / 2, extraShift + diameterExternal)[
+                    ~(
+                            cube(diameterTop, 0.01, bgHeight + trampoline)
+                                    .center(true, false, false)
+                                    .end(false, true, false) +
+                            cube(diameterTop, 0.01, bgHeight)
+                                    .center(true, false, false)
+                                    .start(false, true, false)
+                                    .dy(-diameterExternal)
+                    ) & cylinder(bgHeight + trampoline, diameterTop / 2, diameterTop / 2 - 1).center(true, true, false).dy(-diameterExternal/2)
+            ]
+        } else {
+            union()
         }
     }
 
