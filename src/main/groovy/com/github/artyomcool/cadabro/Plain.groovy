@@ -1,5 +1,6 @@
 package com.github.artyomcool.cadabro
 
+import com.github.artyomcool.cadabro.d2.CADObject2D
 import javafx.application.Application
 import javafx.scene.Scene
 import javafx.scene.layout.Pane
@@ -10,6 +11,7 @@ import javafx.scene.shape.Path
 import javafx.scene.shape.PathElement
 import javafx.stage.Stage
 import org.apache.commons.geometry.euclidean.twod.AffineTransformMatrix2D
+import org.apache.commons.geometry.euclidean.twod.RegionBSPTree2D
 
 import static com.github.artyomcool.cadabro.d2.CADObject2D.draw
 
@@ -22,6 +24,28 @@ class Plain extends Application {
     @Override
     void start(Stage stage) throws Exception {
         List<PathElement> elements = new ArrayList<>()
+
+        double thickness = 2 * 50
+        double depth = 10 * 50
+        double lock = 2 * 50
+
+        def obj = CADObject2D.draw(150,50)
+                .go(thickness)
+                .cw()
+                .go(depth)
+                .cw()
+                .smooth()
+                .go(lock + thickness)
+                .cw()
+                .smooth()
+                .go(thickness)
+                .cw()
+                .smooth()
+                .go(lock)
+                .ccw()
+                .smooth()
+                .close()
+
 
         double extra = 2
         double wall = 2
@@ -42,6 +66,12 @@ class Plain extends Application {
         tree.union(draw(0,0).go(64).cw().go(55).cw().go(64).close().asTree())
         tree.union(t2)
         tree.transform(AffineTransformMatrix2D.createTranslation(100, 100))
+
+
+        def tt = obj.asTree()
+        tt.transform(AffineTransformMatrix2D.createTranslation(400, 100))
+        tree = obj.toTree()
+        tree.union(Offset.offset(tt, 10))
 
 
         List<Path> paths = []

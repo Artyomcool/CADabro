@@ -1,16 +1,24 @@
 package com.github.artyomcool.cadabro.d3
 
+import com.github.artyomcool.cadabro.Extrude
+import com.github.artyomcool.cadabro.Offset
 import javafx.scene.paint.Color
 import org.apache.commons.geometry.euclidean.threed.AffineTransformMatrix3D
+import org.apache.commons.geometry.euclidean.threed.Planes
 import org.apache.commons.geometry.euclidean.threed.RegionBSPTree3D
+import org.apache.commons.geometry.euclidean.threed.Vector3D
 import org.apache.commons.geometry.euclidean.threed.rotation.AxisAngleSequence
 import org.apache.commons.geometry.euclidean.threed.rotation.AxisSequence
 import org.apache.commons.geometry.euclidean.threed.rotation.QuaternionRotation
 
 import java.util.function.Consumer
 
+import static com.github.artyomcool.cadabro.Extrude.*
+import static com.github.artyomcool.cadabro.Offset.offset
 import static com.github.artyomcool.cadabro.d3.CADObjects.fromTree
 import static com.github.artyomcool.cadabro.d3.CADObjects.hull
+import static org.apache.commons.geometry.euclidean.threed.Planes.*
+import static org.apache.commons.geometry.euclidean.threed.Vector3D.*
 
 abstract class CADObject3D {
 
@@ -221,6 +229,70 @@ abstract class CADObject3D {
         fromTree(withX ? -size.x : 0, withY ? -size.y : 0, withZ ? -size.z : 0) { tree }
     }
 
+    CADObject3D startX() {
+        return start(true, false, false)
+    }
+
+    CADObject3D startY() {
+        return start(false, true, false)
+    }
+
+    CADObject3D startZ() {
+        return start(false, false, true)
+    }
+
+    CADObject3D centerX() {
+        return center(true, false, false)
+    }
+
+    CADObject3D centerY() {
+        return center(false, true, false)
+    }
+
+    CADObject3D centerZ() {
+        return center(false, false, true)
+    }
+
+    CADObject3D centerXY() {
+        return center(true, true, false)
+    }
+
+    CADObject3D centerYZ() {
+        return center(false, true, true)
+    }
+
+    CADObject3D centerXZ() {
+        return center(true, false, true)
+    }
+
+    CADObject3D endX() {
+        return end(true, false, false)
+    }
+
+    CADObject3D endY() {
+        return end(false, true, false)
+    }
+
+    CADObject3D endZ() {
+        return end(false, false, true)
+    }
+
+    CADObject3D extrude3d() {
+        return fromTree {
+            def tree = asTree().toTree()
+            def tree3D = extrude3d(tree, fromPointAndNormal(of(0, 0, maxZ), of(0, 0, 1), e))
+            return BSPTree.from(tree3D)
+        }
+    }
+
+    CADObject3D offset(double r) {
+        return fromTree {
+            def tree = asTree().toTree()
+            def tree3D = offset(tree, r)
+            return BSPTree.from(tree3D)
+        }
+    }
+
     CADObject3D start(boolean withX = true, boolean withY = true, boolean withZ = true) {
         def tree = asTree().copy()
         def size = bounds().min
@@ -248,7 +320,7 @@ abstract class CADObject3D {
         for (def node in tree.nodes()) {
             node.color = color
         }
-        fromTree { tree }
+        return fromTree { tree }
     }
 
     Bounds bounds() {

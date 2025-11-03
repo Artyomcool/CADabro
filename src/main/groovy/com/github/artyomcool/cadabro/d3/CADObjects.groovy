@@ -23,7 +23,7 @@ class CADObjects {
     static CADObject3D sphere(double r = 0.5) {
         def sphere = Sphere.from(Vector3D.ZERO, r, e)
 
-        fromTree(r, r, r) { from(sphere.toTree(4)) }
+        fromTree(r, r, r) { from(sphere.toTree(r < 0.5 ? 2 : 4)) }
     }
 
     static CADObject3D cube(double xyz = 1) {
@@ -54,18 +54,39 @@ class CADObjects {
         rcube(xyz, xyz, xyz, r)
     }
 
-    static CADObject3D rcube(double x, double y, double z, double r = 2, boolean x0y0 = true, boolean x1y0 = true, boolean x1y1 = true, boolean x0y1 = true) {
+    static CADObject3D rcube(double x, double y, double z, double r = 2, boolean x0y0 = true, boolean x1y0 = true, boolean x1y1 = true, boolean x0y1 = true, double s = 1) {
         if (r == 0) {
             return cube(x, y, z)
         }
         return extrude(
-                draw(0, 0).smooth(r, x0y0 ? 16 : 0)
+                draw(-x/2, -y/2).smooth(r, x0y0 ? 16 : 0)
                         .dx(x).smooth(r, x1y0 ? 16 : 0)
                         .dy(y).smooth(r, x1y1 ? 16 : 0)
                         .dx(-x).smooth(r, x0y1 ? 16 : 0)
                         .close(),
-                z
-        )
+                z,
+                s
+        ).dxy(x * s / 2, y * s /2)
+    }
+
+    static CADObject3D rrcube(double xyz, double r = 2) {
+        rrcube(xyz, xyz, xyz, r)
+    }
+
+    static CADObject3D rrcube(double x, double y, double z, double r = 2, boolean x0y0 = true, boolean x1y0 = true, boolean x1y1 = true, boolean x0y1 = true, double s = 1) {
+        if (r == 0) {
+            return cube(x, y, z)
+        }
+        return hull(
+                sphere(r).dxyz(-x/2, -y/2, -z/2),
+                sphere(r).dxyz(x/2, -y/2, -z/2),
+                sphere(r).dxyz(x/2, y/2, -z/2),
+                sphere(r).dxyz(-x/2, y/2, -z/2),
+                sphere(r).dxyz(-x/2, -y/2, z/2),
+                sphere(r).dxyz(x/2, -y/2, z/2),
+                sphere(r).dxyz(x/2, y/2, z/2),
+                sphere(r).dxyz(-x/2, y/2, z/2),
+        ).dxyz(x/2, y/2, z/2)
     }
 
     static CADObject3D cylinder(double h = 1, double rb = 1, double rt = rb) {
@@ -74,6 +95,15 @@ class CADObjects {
 
         double d = Math.max(rb, rt)
         fromPlanes(d, d, 0) { Extrude.extrude(c.toTree(64), h, rt / rb) }
+    }
+
+    static CADObject3D polygon(int vertexes, double h = 1, double rb = 1, double rt = rb) {
+        List<Vector2D> points = []
+        for (int i = 0; i < vertexes; i++) {
+            double angle = Math.toRadians(360.0 / vertexes * i)
+            points.add(Vector2D.of(Math.cos(angle) * rb, Math.sin(angle) * rb))
+        }
+        extrude(draw(points), h, rt / rb)
     }
 
     static CADObject3D extrudeRotate(double angle = 360, CADObject2D obj2d) {
@@ -213,10 +243,7 @@ class CADObjects {
     }
 
     static Union union(@DelegatesTo(Union) Closure c) {
-        def u = union()
-        c = c.rehydrate(u, c.owner, u)
-        c(u)
-        return u
+        return union().tap(c)
     }
 
     static Diff diff(@DelegatesTo(Diff) Closure c) {

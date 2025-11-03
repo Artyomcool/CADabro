@@ -1,6 +1,9 @@
 package com.github.artyomcool.cadabro.d2
 
-
+import com.github.artyomcool.cadabro.Offset
+import com.github.artyomcool.cadabro.d3.CADObject3D
+import com.github.artyomcool.cadabro.d3.CADObjects
+import org.apache.commons.geometry.euclidean.twod.AffineTransformMatrix2D
 import org.apache.commons.geometry.euclidean.twod.Bounds2D
 import org.apache.commons.geometry.euclidean.twod.RegionBSPTree2D
 import org.apache.commons.geometry.euclidean.twod.Vector2D
@@ -34,13 +37,41 @@ abstract class CADObject2D {
         return cachedTree
     }
 
+    CADObject2D offset(double offset) {
+        def tree = asTree()
+        return new CADObject2D() {
+            @Override
+            protected RegionBSPTree2D toTree() {
+                return Offset.offset(tree, offset)
+            }
+        }
+    }
+
     static Drawer draw(double x = 0, double y = 0) {
         return new Drawer().tap { points.add(V.of(x, y)) }
     }
 
+    static CADObject2D square(double w, double h = w) {
+        return draw()
+                .go(w).cw()
+                .go(h).cw()
+                .go(w).cw()
+                .go(h).cw()
+                .close()
+    }
+
+    static CADObject2D draw(List<Vector2D> vertexes) {
+        return new CADObject2D() {
+            @Override
+            protected RegionBSPTree2D toTree() {
+                return LinePath.fromVertexLoop(vertexes, e).toTree()
+            }
+        }
+    }
+
     static CADObject2D text(String text, Bounds2D bounds) {
         FontRenderContext frc = new FontRenderContext(null, true, true)
-        def glyphVector = new Font("Arial", Font.BOLD, 4).createGlyphVector(frc, text)
+        def glyphVector = new Font("Arial", Font.BOLD, 8).createGlyphVector(frc, text)
         def iterator = glyphVector.outline.getPathIterator(null, 0.1)
         def tree2D = RegionBSPTree2D.empty()
         LinePath.Builder builder = null
@@ -75,6 +106,32 @@ abstract class CADObject2D {
                 return tree2D
             }
         }
+    }
+
+    CADObject3D extrude(double height) {
+        CADObjects.extrude(this, height)
+    }
+
+    CADObject2D dx(double x) {
+        return dxy(x, 0)
+    }
+
+    CADObject2D dy(double y) {
+        return dxy(0, y)
+    }
+
+    CADObject2D dxy(double x, double y) {
+        def tree = asTree().copy()
+        tree.transform(AffineTransformMatrix2D.createTranslation(x, y))
+        return fromTree(tree)
+    }
+
+    double getWidth() {
+        return bounds().diagonal.x
+    }
+
+    double getHeight() {
+        return bounds().diagonal.y
     }
 
     static class Drawer {

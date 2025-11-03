@@ -1,20 +1,18 @@
 package com.github.artyomcool.cadabro.d3
 
 import javafx.scene.paint.Color
-import org.apache.commons.geometry.core.internal.IteratorTransform
 import org.apache.commons.geometry.core.partitioning.Hyperplane
 import org.apache.commons.geometry.core.partitioning.HyperplaneBoundedRegion
 import org.apache.commons.geometry.core.partitioning.HyperplaneConvexSubset
 import org.apache.commons.geometry.core.partitioning.Split
 import org.apache.commons.geometry.core.partitioning.bsp.AbstractBSPTree
 import org.apache.commons.geometry.core.partitioning.bsp.AbstractRegionBSPTree
-import org.apache.commons.geometry.core.partitioning.bsp.RegionCutBoundary
 import org.apache.commons.geometry.euclidean.threed.*
 
 import java.util.stream.Stream
 import java.util.stream.StreamSupport
 
-import static com.github.artyomcool.cadabro.d3.CADObjects.*
+import static com.github.artyomcool.cadabro.d3.CADObjects.e
 
 class BSPTree extends AbstractRegionBSPTree<Vector3D, RegionNode> implements BoundarySource3D {
     BSPTree(boolean full) {
@@ -55,7 +53,6 @@ class BSPTree extends AbstractRegionBSPTree<Vector3D, RegionNode> implements Bou
 
         return dst;
     }
-
 
     List<ConvexVolume> toConvex() {
         final List<ConvexVolume> result = new ArrayList<>();

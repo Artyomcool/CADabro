@@ -57,7 +57,10 @@ class Hull extends Union {
                 def f = vertices[pi]
                 v.add(Vector3D.of(f.x, f.y, f.z))
             }
-            result.add(Planes.convexPolygonFromVertices(v, e))
+            try {
+                result.add(Planes.convexPolygonFromVertices(v, e))
+            } catch (IllegalArgumentException ignored) {
+            }
         }
 
         return BSPTree.from(result)

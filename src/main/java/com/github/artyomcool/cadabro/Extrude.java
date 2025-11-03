@@ -1,6 +1,7 @@
 package com.github.artyomcool.cadabro;
 
 import org.apache.commons.geometry.euclidean.threed.*;
+import org.apache.commons.geometry.euclidean.threed.shape.Parallelepiped;
 import org.apache.commons.geometry.euclidean.twod.ConvexArea;
 import org.apache.commons.geometry.euclidean.twod.LineConvexSubset;
 import org.apache.commons.geometry.euclidean.twod.RegionBSPTree2D;
@@ -176,6 +177,44 @@ public class Extrude {
         final List<Vector3D> vertices = Arrays.asList(startPt, endPt, extrudedEndPt, extrudedStartPt);
 
         return convexPolygonFromVertices(vertices, e);
+    }
+
+    public static RegionBSPTree3D extrude3d(RegionBSPTree3D tree, Plane plane) {
+        RegionBSPTree3D result = new RegionBSPTree3D();
+        tree.condense();
+        List<PlaneConvexSubset> boundaries = tree.getBoundaries();
+        for (PlaneConvexSubset boundary : boundaries) {
+            RegionBSPTree3D piece = new RegionBSPTree3D();
+            List<Vector3D> vertices = boundary.getVertices();
+            List<Vector3D> projectionVertices = new ArrayList<>(vertices.size());
+            for (Vector3D vertex : vertices) {
+                projectionVertices.add(plane.project(vertex));
+            }
+
+            piece.insert(boundary);
+            try {
+                piece.insert(convexPolygonFromVertices(projectionVertices.reversed(), e));
+            } catch (IllegalArgumentException ignored) {
+            }
+
+            for (int i = 0; i < vertices.size(); i++) {
+                Vector3D startPt = vertices.get(i);
+                Vector3D endPt = vertices.get((i + 1) % vertices.size());
+                Vector3D extrudedStartPt = projectionVertices.get(i);
+                Vector3D extrudedEndPt = projectionVertices.get((i + 1) % projectionVertices.size());
+                try {
+                    List<Vector3D> v = Arrays.asList(startPt, endPt, extrudedEndPt, extrudedStartPt).reversed();
+                    ConvexPolygon3D convexSub = convexPolygonFromVertices(v, e);
+                    piece.insert(convexSub);
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+
+            if (piece.isFinite()) {
+                result.union(piece);
+            }
+        }
+        return result;
     }
 
 }

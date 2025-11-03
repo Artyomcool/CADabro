@@ -24,6 +24,7 @@ class CardHolder {
     Double cornerCutRadius = null
     String caption = null
     Double captionFontSize = null
+    Double teethHeight = null
 
     CardHolder(double innerWidth, double innerHeight, double innerDepth) {
         this.innerWidth = innerWidth
@@ -59,6 +60,10 @@ class CardHolder {
         captionFontSize == null ? totalDepth / 2 : captionFontSize
     }
 
+    double getTeethHeight() {
+        return teethHeight == null ? 2 : teethHeight
+    }
+
     double getTotalWidth() {
         wall + innerWidth + wall
     }
@@ -81,7 +86,7 @@ class CardHolder {
     }
 
     CADObject3D withTeeth() {
-        withTeeth(base(), 5, 2, wall, wall * 2 + innerR)
+        withTeeth(base(), 5, getTeethHeight(), wall, wall * 2 + innerR)
     }
 
     CADObject3D withCut() {
@@ -90,6 +95,14 @@ class CardHolder {
 
     CADObject3D cuts() {
         makeCut(cutR, cornerCutR, wall, totalDepth).dx(totalWidth / 2) + title()
+    }
+
+    CardHolder adjustInnerToExternal() {
+        innerWidth -= totalWidth - innerWidth
+        innerHeight -= totalHeight - innerHeight
+        innerDepth -= totalDepth - innerDepth
+
+        return this
     }
 
     static CADObject3D makeCut(double cutR, double cornerCutR, double wall, double totalDepth) {
@@ -121,46 +134,13 @@ class CardHolder {
                 .dxyz(totalWidth / 2, totalHeight, totalDepth / 2)
     }
 
-    static CADObject3D tooth(double width, double height, double thickness) {
-        double r = thickness
-
-        def s = sphere(r).dz(height - r * 2)
-        def part = r >= height ? s : s + cylinder(height - r, r)
-        part = part.dy(-r) & cube(r * 2, r, height)
-        hull(part, part.dx(width - r * 2))
-    }
-
-    static CADObject3D withTeeth(CADObject3D obj, double teethWidth, double teethHeight, double thickness, double delta) {
-        double cut = 0.4
-        double shift = 0.2 + cut
-        def bounds = obj.bounds()
-
-        List<CADObject3D> teeth = []
-        List<CADObject3D> teethCut = []
-
-        def add = (double x, double y, double rotation) -> {
-            teeth << tooth(teethWidth, teethHeight, thickness).rz(rotation).dxyz(x, y, bounds.max.z)
-            teethCut << tooth(cut + teethWidth + cut, teethHeight + cut, thickness).dx(-cut).rz(rotation).dxyz(x, y, bounds.min.z)
-        }
-
-        add(bounds.min.x + delta, bounds.min.y, 0)
-        add(bounds.max.x - delta - teethWidth, bounds.min.y, 0)
-        add(bounds.min.x + delta + teethWidth, bounds.max.y, 180)
-        add(bounds.max.x - delta, bounds.max.y, 180)
-
-
-        add(bounds.min.x, bounds.min.y + delta + teethWidth, -90)
-        add(bounds.min.x, bounds.max.y - delta, -90)
-        add(bounds.max.x, bounds.min.y + delta, 90)
-        add(bounds.max.x, bounds.max.y - delta - teethWidth, 90)
-
-        def u = union(obj)
-        teeth.each { u it }
-
-        def d = diff(u)
-        teethCut.each { d it }
-
-        return d
+    static CADObject3D withTeeth(CADObject3D obj, double tw, double th, double t, double d) {
+        new Teeth().tap {
+            teethWidth = tw
+            teethHeight = th
+            thickness = t
+            delta = d
+        }.renderAll(obj)
     }
 
 }
