@@ -40,31 +40,35 @@ class Mars {
             def player = union(topUnion, bottomUnion)
 
             def storageTotalHeight = 12
-            def innerMarkers = markersHolderInner(storageTotalHeight, tinyBorder)
-            def outerMarkers = hh(innerMarkers.width - tinyBorder * 2, innerMarkers.height - tinyBorder * 2, storageTotalHeight, bigBorder)
-            def markersStorage = union(innerMarkers.dxy(bigBorder-tinyBorder), outerMarkers)
+            def innerMarkers = markersHolderInner(storageTotalHeight, smallBorder)
+            def outerMarkers = hh(innerMarkers.width - smallBorder * 2, innerMarkers.height - smallBorder * 2, storageTotalHeight, bigBorder)
+            def markersStorage = union(innerMarkers.dxy(bigBorder-smallBorder), outerMarkers)
             markersStorage -= rcube(markersStorage.width - 20, 8, markersStorage.height, 4)
                     .rx(-90)
                     .dz(storageTotalHeight+0.4+4)
                     .centerX()
                     .dx(markersStorage.centerX)
 
+            double offset = 0.4
             def hull = hull(markersStorage)
-            def cut = hull.offset(0.5).dxyz(0.5)
-            def cover = hull.offset(0.5 + bigBorder).dxyz(0.5 + bigBorder)
+            def cut = hull.offset(offset).dxyz(offset)
+            def cover = hull.offset(offset + smallBorder).dxyz(offset + smallBorder)
+            cover = cover - cut.dxy(smallBorder).dz(smallBorder) - cube(cover.width, cover.height, 4)
+            cover -= cylinder(cover.width, 6).ry(90).dz(12).dy(cover.height/2 - 6)
 
-            def markersCover = perforate(cover - cut.dxy(bigBorder).dz(bigBorder) - cube(cover.width, cover.height, cover.depth - 6), 3, 0.8, 4)
+            /*
+            def markersCover = perforate(cover, 3, 0.8, 4)
             double markersStorageTotalDepth = markersCover.maxZ
             for (int i = 0; i < 1; i++) {
                 add markersCover.dy(i.intdiv(3) * markersCover.height).dz((i%3) * markersStorageTotalDepth)
-                add markersStorage.dxy(0.5 + bigBorder).dy(i.intdiv(3) * markersCover.height).dz((i%3) * markersStorageTotalDepth)
+                add markersStorage.dxy(offset + smallBorder).dy(i.intdiv(3) * markersCover.height).dz((i%3) * markersStorageTotalDepth)
             }
 
             double cardWidth = 90
             double cardHeight = 65
-            double cardDepth1 = 40
-            double cardDepth2 = 21
-            double cardDepth3 = 8
+            double cardDepth1 = 45
+            double cardDepth2 = 25
+            double cardDepth3 = 11
             def ch1 = ch(cardWidth, cardHeight, cardDepth1, bigBorder)
             def ch2 = ch(cardWidth, cardHeight, cardDepth2, bigBorder)
             def ch3 = ch(cardWidth, cardHeight, cardDepth3, bigBorder)
@@ -81,6 +85,11 @@ class Mars {
             //add rules, true
 
             add hexHolders().rz(90).start().endX().dx(280)
+             */
+
+            def smallHolder = cylinder(20, 27.4).centerXY() - cylinder(5, 26).centerXY().dz(15) - cylinder(19, 18).centerXY().dz(1)
+            smallHolder = smallHolder.start() - cylinder(20, 8).centerXY().dx(27.5)
+            add smallHolder
         }.tap {
             add(cube(280, 280, 65), true, true)
         }
@@ -125,7 +134,7 @@ class Mars {
         }
     }
 
-    private static CADObject3D markersHolderInner(double storageTotalHeight, double tinyBorder) {
+    private static CADObject3D markersHolderInner(double storageTotalHeight, double border) {
         def smallMarkerSize = 7.5
         def mediumMarkerSize = 8.8
         def playerMarkerSize = mediumMarkerSize
@@ -144,7 +153,7 @@ class Mars {
                 11,
                 playerMarkersHeight,
                 storageInnerHeight,
-                tinyBorder,
+                border,
                 bigMarkerSize,
                 bigMarkerCount
         )
@@ -152,7 +161,7 @@ class Mars {
                 36,
                 playerMarkersHeight,
                 storageInnerHeight,
-                tinyBorder,
+                border,
                 playerMarkerSize,
                 playerMarkerCount
         )
@@ -160,24 +169,24 @@ class Mars {
                 31,
                 mediumMarkersHeight,
                 storageInnerHeight,
-                tinyBorder,
+                border,
                 mediumMarkerSize,
                 mediumMarkerCount
         )
         def smallMarkers = markersContainer(
                 31,
-                playerMarkersHeight - mediumMarkersHeight - tinyBorder,
+                playerMarkersHeight - mediumMarkersHeight - border,
                 storageInnerHeight,
-                tinyBorder,
+                border,
                 smallMarkerSize,
                 smallMarkerCount
         )
-        bigMarkers = bigMarkers.dx(smallMarkers.maxX - tinyBorder)
+        bigMarkers = bigMarkers.dx(smallMarkers.maxX - border)
 
         return CADObjects.union(
                 bigMarkers,
-                mediumMarkers.dy(smallMarkers.maxY - tinyBorder),
-                playerMarkers.dx(bigMarkers.maxX - tinyBorder),
+                mediumMarkers.dy(smallMarkers.maxY - border),
+                playerMarkers.dx(bigMarkers.maxX - border),
                 smallMarkers
         )
     }
