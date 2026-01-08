@@ -23,6 +23,8 @@ class CardHolder {
     Double cutRadius = null
     Double cornerCutRadius = null
     String caption = null
+    String captionLeft = null
+    String captionRight = null
     Double captionFontSize = null
     Double teethHeight = null
 
@@ -89,6 +91,10 @@ class CardHolder {
         withTeeth(base(), 5, getTeethHeight(), wall, wall * 2 + innerR)
     }
 
+    CADObject3D withTeethAndText() {
+        withTeeth() - title()
+    }
+
     CADObject3D withCut() {
         base() - cuts()
     }
@@ -124,14 +130,33 @@ class CardHolder {
     }
 
     CADObject3D title() {
-        if (caption == null) {
-            return union()
-        }
-        extrude(text(caption, null), Math.min(wall - 1, 2)).color(Color.GREENYELLOW).center()
+        def r = union()
+
+        if (caption != null) r += extrude(text(caption, null), Math.min(wall - 1, 2))
+                .color(Color.GREENYELLOW)
+                .center()
                 .rx(-90)
                 .rz(180)
                 .dyBy(-0.5)
                 .dxyz(totalWidth / 2, totalHeight, totalDepth / 2)
+
+        if (captionLeft != null) r += extrude(text(captionLeft, null), Math.min(wall - 1, 2))
+                .color(Color.GREENYELLOW)
+                .center()
+                .rx(-90)
+                .rz(90)
+                .dxBy(-0.5)
+                .dxyz(totalWidth, totalHeight / 2, totalDepth / 2)
+
+        if (captionRight != null) r += extrude(text(captionRight, null), Math.min(wall - 1, 2))
+                .color(Color.GREENYELLOW)
+                .center()
+                .rx(-90)
+                .rz(-90)
+                .dxBy(0.5)
+                .dxyz(0, totalHeight / 2, totalDepth / 2)
+
+        return r
     }
 
     static CADObject3D withTeeth(CADObject3D obj, double tw, double th, double t, double d) {

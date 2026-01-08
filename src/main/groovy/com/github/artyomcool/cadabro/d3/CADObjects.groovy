@@ -2,6 +2,7 @@ package com.github.artyomcool.cadabro.d3
 
 import com.github.artyomcool.cadabro.Extrude
 import com.github.artyomcool.cadabro.d2.CADObject2D
+import org.apache.commons.geometry.core.Transform
 import org.apache.commons.geometry.euclidean.threed.AffineTransformMatrix3D
 import org.apache.commons.geometry.euclidean.threed.PlaneConvexSubset
 import org.apache.commons.geometry.euclidean.threed.Vector3D

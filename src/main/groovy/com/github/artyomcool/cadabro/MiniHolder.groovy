@@ -102,6 +102,31 @@ class MiniHolder {
         renderBg() + renderStrengthWall() - renderCuts() + renderHolder() + renderTrampoline()
     }
 
+    def render2() {
+        def r = render()
+        return r + r.rcz(180).dy(r.maxY)
+    }
+
+    def render(int cnt) {
+        if (cnt == 1) {
+            return render()
+        }
+
+        def pair = render2()
+        if (cnt == 2) {
+            return pair
+        }
+
+        def r = union()
+        for (int i = 0; i < cnt - 1; i += 2) {
+            r << pair.dy(i * pair.height)
+        }
+        if (cnt & 1) {
+            r << render().dy((cnt - 2) * pair.height)
+        }
+        return r
+    }
+
     def renderBg() {
         cube(width, height, bgHeight)
     }

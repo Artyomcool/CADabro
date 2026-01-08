@@ -18,6 +18,9 @@ class Common {
     final static int SMALL_SQUARE = 34
     final static int SMALL_CIRCLE = 28
 
+    final static double CARD_HEIGHT = 89.6
+    final static double CARD_WIDTH = 64.4
+
     static CADObject3D bigSquareHolder(double depth, boolean simplify = false) {
         if (simplify) {
             return cube(

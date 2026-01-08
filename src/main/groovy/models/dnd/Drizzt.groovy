@@ -53,7 +53,6 @@ class Drizzt {
         holder.borderThickness = 1.6
         holder.floorThickness = 0.8
         List<CADObject3D> result = []
-        '{\n  monsters:[\n    {\n      common:{\n        sound:some_sound.snd\n        def:some_def.def\n        name:Some Monster\n        name_plural:Some Monsters\n        description:This is a Some Monster description\n      }\n      town:{\n        town:-1\n        growth:7\n        horde_growth:2\n        cost:{\n          wood:3\n          mercury:1\n          gold:1003\n        }\n      }\n      map:{\n        advmap_count:{\n          from:30\n          to:50\n        }\n        ai_value:100\n      }\n      battle:{\n        hp:30\n        speed:5\n        attack:4\n        defence:3\n        damage:{\n          from:35\n          to:45\n        }\n        shots:12\n        casts:0\n        fight_value:90\n        bullet_type:16\n      }\n    }\n  ]\n  heroes:[\n  ]\n}'
 
         def add = (@DelegatesTo(models.common.CardHolder.class) Closure cfg) -> {
             holder.with cfg

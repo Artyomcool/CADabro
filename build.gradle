@@ -2,8 +2,9 @@ import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
 
 plugins {
     id 'groovy'
+    id 'application'
     id 'org.openjfx.javafxplugin' version '0.1.0'
-    id 'org.gradlex.extra-java-module-info' version '1.8'
+    id 'org.gradlex.extra-java-module-info' version '1.13.1'
 }
 
 group = 'com.github.artyomcool'
@@ -17,6 +18,10 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
     }
+}
+
+application {
+    mainClass = 'com.github.artyomcool.cadabro.CADabro'
 }
 
 javafx {

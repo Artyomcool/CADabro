@@ -28,6 +28,25 @@ public class Transformations {
         };
     }
 
+    public static <P extends Point<P>> Transform<P> simpleReverse(Function<P, P> func) {
+        return new Transform<>() {
+            @Override
+            public Transform<P> inverse() {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public boolean preservesOrientation() {
+                return false;
+            }
+
+            @Override
+            public P apply(P vector3D) {
+                return func.apply(vector3D);
+            }
+        };
+    }
+
     public static Transform<Vector2D> t2d(Function<Vector2D, Vector2D> func) {
         return simple(func);
     }
@@ -36,5 +55,8 @@ public class Transformations {
         return simple(func);
     }
 
+    public static Transform<Vector3D> tr3d(Function<Vector3D, Vector3D> func) {
+        return simpleReverse(func);
+    }
 
 }

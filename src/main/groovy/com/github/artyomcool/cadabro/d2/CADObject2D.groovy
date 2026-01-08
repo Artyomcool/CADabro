@@ -1,5 +1,6 @@
 package com.github.artyomcool.cadabro.d2
 
+
 import com.github.artyomcool.cadabro.Offset
 import com.github.artyomcool.cadabro.d3.CADObject3D
 import com.github.artyomcool.cadabro.d3.CADObjects
@@ -8,6 +9,7 @@ import org.apache.commons.geometry.euclidean.twod.Bounds2D
 import org.apache.commons.geometry.euclidean.twod.RegionBSPTree2D
 import org.apache.commons.geometry.euclidean.twod.Vector2D
 import org.apache.commons.geometry.euclidean.twod.path.LinePath
+import org.apache.commons.geometry.euclidean.twod.rotation.Rotation2D
 import org.apache.commons.numbers.core.Precision
 
 import java.awt.*
@@ -120,7 +122,13 @@ abstract class CADObject2D {
         return dxy(0, y)
     }
 
-    CADObject2D dxy(double x, double y) {
+    CADObject2D rotate(double r) {
+        def tree = asTree().copy()
+        tree.transform(Rotation2D.of(Math.toRadians(r)))
+        return fromTree(tree)
+    }
+
+    CADObject2D dxy(double x, double y = x) {
         def tree = asTree().copy()
         tree.transform(AffineTransformMatrix2D.createTranslation(x, y))
         return fromTree(tree)
@@ -173,6 +181,12 @@ abstract class CADObject2D {
 
         Drawer r(double r) {
             direction += r
+            while (direction >= 360) {
+                direction -= 360
+            }
+            while (direction < 0) {
+                direction += 360
+            }
             this
         }
 

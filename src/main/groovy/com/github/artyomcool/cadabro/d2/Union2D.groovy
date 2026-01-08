@@ -14,4 +14,9 @@ class Union2D extends CADCollection2D {
 
         return tree
     }
+
+    static Union2D plus(CADObject2D one, CADObject2D two) {
+        return new Union2D().tap { add(one); add(two) }
+    }
+
 }

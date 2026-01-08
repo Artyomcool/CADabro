@@ -1,11 +1,9 @@
 package com.github.artyomcool.cadabro.d3
 
-import com.github.artyomcool.cadabro.Extrude
-import com.github.artyomcool.cadabro.Offset
+
 import javafx.scene.paint.Color
+import org.apache.commons.geometry.core.Transform
 import org.apache.commons.geometry.euclidean.threed.AffineTransformMatrix3D
-import org.apache.commons.geometry.euclidean.threed.Planes
-import org.apache.commons.geometry.euclidean.threed.RegionBSPTree3D
 import org.apache.commons.geometry.euclidean.threed.Vector3D
 import org.apache.commons.geometry.euclidean.threed.rotation.AxisAngleSequence
 import org.apache.commons.geometry.euclidean.threed.rotation.AxisSequence
@@ -13,12 +11,15 @@ import org.apache.commons.geometry.euclidean.threed.rotation.QuaternionRotation
 
 import java.util.function.Consumer
 
-import static com.github.artyomcool.cadabro.Extrude.*
+import static com.github.artyomcool.cadabro.Extrude.e
+import static com.github.artyomcool.cadabro.Extrude.extrude3d
 import static com.github.artyomcool.cadabro.Offset.offset
+import static com.github.artyomcool.cadabro.Transformations.tr3d
 import static com.github.artyomcool.cadabro.d3.CADObjects.fromTree
 import static com.github.artyomcool.cadabro.d3.CADObjects.hull
-import static org.apache.commons.geometry.euclidean.threed.Planes.*
-import static org.apache.commons.geometry.euclidean.threed.Vector3D.*
+import static com.github.artyomcool.cadabro.d3.CADObjects.union
+import static org.apache.commons.geometry.euclidean.threed.Planes.fromPointAndNormal
+import static org.apache.commons.geometry.euclidean.threed.Vector3D.of
 
 abstract class CADObject3D {
 
@@ -290,6 +291,38 @@ abstract class CADObject3D {
             def tree = asTree().toTree()
             def tree3D = offset(tree, r)
             return BSPTree.from(tree3D)
+        }
+    }
+
+    CADObject3D mirrorX() {
+        return transform(tr3d {
+            of(-it.x, it.y, it.z)
+        })
+    }
+
+    CADObject3D transform(Transform<Vector3D> t) {
+        return fromTree {
+            def tree = asTree().toTree()
+            tree.transform(t)
+            return BSPTree.from(tree)
+        }
+    }
+
+    CADObject3D stripeX(int count) {
+        def t = this
+        union {
+            count.times {
+                add t.dx(it * t.maxX)
+            }
+        }
+    }
+
+    CADObject3D stripeY(int count) {
+        def t = this
+        union {
+            count.times {
+                add t.dy(it * t.maxY)
+            }
         }
     }
 

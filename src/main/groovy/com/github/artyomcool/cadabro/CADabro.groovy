@@ -18,13 +18,14 @@ import javafx.scene.shape.DrawMode
 import javafx.scene.shape.MeshView
 import javafx.scene.shape.TriangleMesh
 import javafx.stage.Stage
+import models.dnd.ElementalEvil
 import models.mars.Mars
 
 import java.nio.file.Path
 
 class CADabro extends Application {
 
-    RenderCollection collection = Mars.render()
+    RenderCollection collection = ElementalEvil.render()
 
     final Group root = new Group()
     final Form axisGroup = new Form()
