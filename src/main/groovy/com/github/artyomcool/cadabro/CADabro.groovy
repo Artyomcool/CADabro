@@ -56,9 +56,6 @@ class CADabro extends Application {
     private static final double AXIS_LENGTH = 250.0
     private static final double CONTROL_MULTIPLIER = 0.1
     private static final double SHIFT_MULTIPLIER = 10.0
-    private static final double MOUSE_SPEED = 0.1
-    private static final double ROTATION_SPEED = 2.0
-    private static final double TRACK_SPEED = 1
 
     double mousePosX
     double mousePosY
@@ -129,22 +126,37 @@ class CADabro extends Application {
                 mouseDeltaX = (mousePosX - mouseOldX)
                 mouseDeltaY = (mousePosY - mouseOldY)
 
-                double modifier = 1.0
-
-                if (me.isShiftDown()) {
-                    modifier = SHIFT_MULTIPLIER
-                }
                 if (me.isPrimaryButtonDown()) {
                     if (me.isControlDown()) {
-                        cameraXform.ry.setAngle(cameraXform.ry.getAngle() - mouseDeltaX * MOUSE_SPEED * modifier * ROTATION_SPEED)
-                        cameraXform.rx.setAngle(cameraXform.rx.getAngle() - mouseDeltaY * MOUSE_SPEED * modifier * ROTATION_SPEED)
+                        cameraXform.ry.setAngle(cameraXform.ry.getAngle() - mouseDeltaX)
+                        cameraXform.rx.setAngle(cameraXform.rx.getAngle() - mouseDeltaY)
                     } else {
-                        cameraXform.t.setX(cameraXform.t.getX() - mouseDeltaX * MOUSE_SPEED * modifier * TRACK_SPEED)
-                        cameraXform.t.setY(cameraXform.t.getY() + mouseDeltaY * MOUSE_SPEED * modifier * TRACK_SPEED)
+                        def cameraPos = camera.localToScene(0.0, 0.0, 0.0)
+
+                        double distance = Math.sqrt(
+                                cameraPos.getX() * cameraPos.getX() +
+                                        cameraPos.getY() * cameraPos.getY() +
+                                        cameraPos.getZ() * cameraPos.getZ()
+                        )
+
+                        double fov = Math.toRadians(camera.getFieldOfView())
+                        double tanHalf = Math.tan(fov / 2.0)
+                        double aspect = scene.getWidth() / scene.getHeight()
+
+                        double unitsPerPixelY = 2.0 * distance * tanHalf / scene.getHeight()
+                        double unitsPerPixelX = 2.0 * distance * tanHalf * aspect / scene.getWidth()
+
+                        cameraXform2.t.setX(
+                                cameraXform2.t.getX() - mouseDeltaX * unitsPerPixelX
+                        )
+                        cameraXform2.t.setY(
+                                cameraXform2.t.getY() - mouseDeltaY * unitsPerPixelY
+                        )
+
                     }
                 } else if (me.isSecondaryButtonDown()) {
                     double z = camera.getTranslateZ()
-                    double newZ = z + mouseDeltaX * MOUSE_SPEED * modifier
+                    double newZ = z + mouseDeltaX
                     camera.setTranslateZ(newZ)
                 }
             }
