@@ -150,7 +150,6 @@ class CardHolder {
                 .color(Color.GREENYELLOW)
                 .center()
                 .rx(-90)
-                .rz(180)
                 .dyBy(-0.5)
                 .dxyz(totalWidth / 2, totalHeight, totalDepth / 2)
 
@@ -158,7 +157,7 @@ class CardHolder {
                 .color(Color.GREENYELLOW)
                 .center()
                 .rx(-90)
-                .rz(90)
+                .rz(-90)
                 .dxBy(-0.5)
                 .dxyz(totalWidth, totalHeight / 2, totalDepth / 2)
 
@@ -166,7 +165,7 @@ class CardHolder {
                 .color(Color.GREENYELLOW)
                 .center()
                 .rx(-90)
-                .rz(-90)
+                .rz(90)
                 .dxBy(0.5)
                 .dxyz(0, totalHeight / 2, totalDepth / 2)
 

@@ -29,7 +29,7 @@ class DungeonOfTheMadMage {
 
             //add heroStash()
             //add tilesHolder(97, true, false, 0.8, 3.2)
-            //add cardHolders(false)
+            add cardHolders(false)
             //add cardHoldersExtra(false)
             //add trapCardHolder()
             //add advancedTokenHolder("YAWNING PORTAL", "THE DEPTHS", 6)
@@ -54,7 +54,7 @@ class DungeonOfTheMadMage {
             //add mediumMinis()
             //add bigMinis()
             //add bottomMinis()
-            add smallAndTinyMinis()
+            //add smallAndTinyMinis()
             //add miniHolderMedium2()
             //add miniHolder()
         }

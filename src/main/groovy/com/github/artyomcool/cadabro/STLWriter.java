@@ -61,7 +61,7 @@ public class STLWriter {
     }
 
     private static void write(Vector3D vector, PrintWriter output) {
-        output.printf(Locale.US, "%.4f %.4f %.4f\n", vector.getX(), vector.getY(), vector.getZ());
+        output.printf(Locale.US, "%.4f %.4f %.4f\n", -vector.getX(), vector.getY(), vector.getZ());
     }
 
 }

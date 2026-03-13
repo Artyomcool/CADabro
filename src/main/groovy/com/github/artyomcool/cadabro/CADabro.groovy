@@ -17,14 +17,27 @@ import javafx.scene.shape.Box
 import javafx.scene.shape.DrawMode
 import javafx.scene.shape.MeshView
 import javafx.scene.shape.TriangleMesh
+import javafx.scene.text.Text
 import javafx.stage.Stage
-import models.dnd.DungeonOfTheMadMage
+import models.common.CardHolder
 
 import java.nio.file.Path
 
+import static com.github.artyomcool.cadabro.d2.CADObject2D.text
+import static com.github.artyomcool.cadabro.d3.CADObjects.extrude
+
 class CADabro extends Application {
 
-    RenderCollection collection = DungeonOfTheMadMage.render()
+    RenderCollection collection = new RenderCollection().tap {
+        add new CardHolder(89.6, 64.4, 20).tap {
+            caption = "CAPTION"
+            captionLeft = "LEFT"
+            captionRight = "RIGHT"
+        }.render()
+        add extrude(text("X", null, 8), 1).color(Color.RED).rx(-90).dx(150), true
+        add extrude(text("Y", null, 8), 1).color(Color.BLUE).rx(-90).rcz(90).dy(150), true
+        add extrude(text("Z", null, 8), 1).color(Color.GREEN).rx(-90).dz(150), true
+    }
 
     final Group root = new Group()
     final Form axisGroup = new Form()
@@ -34,7 +47,8 @@ class CADabro extends Application {
     final Form cameraXform = new Form()
     final Form cameraXform2 = new Form()
     final Form cameraXform3 = new Form()
-    private static final double CAMERA_INITIAL_DISTANCE = -450
+
+    private static final double CAMERA_INITIAL_DISTANCE = -500
     private static final double CAMERA_INITIAL_X_ANGLE = 120.0
     private static final double CAMERA_INITIAL_Y_ANGLE = 30.0
     private static final double CAMERA_NEAR_CLIP = 0.1
@@ -66,26 +80,26 @@ class CADabro extends Application {
         cameraXform.ry.setAngle(CAMERA_INITIAL_Y_ANGLE)
         cameraXform.rx.setAngle(CAMERA_INITIAL_X_ANGLE)
 
-        cameraXform.t.y = -20
-        cameraXform.t.x = 50
+        //cameraXform.t.y = -100
+        //cameraXform.t.x = 50
     }
 
     private void buildAxes() {
-        final PhongMaterial redMaterial = new PhongMaterial()
+        PhongMaterial redMaterial = new PhongMaterial()
         redMaterial.setDiffuseColor(Color.DARKRED)
         redMaterial.setSpecularColor(Color.RED)
 
-        final PhongMaterial greenMaterial = new PhongMaterial()
+        PhongMaterial greenMaterial = new PhongMaterial()
         greenMaterial.setDiffuseColor(Color.DARKGREEN)
         greenMaterial.setSpecularColor(Color.GREEN)
 
-        final PhongMaterial blueMaterial = new PhongMaterial()
+        PhongMaterial blueMaterial = new PhongMaterial()
         blueMaterial.setDiffuseColor(Color.DARKBLUE)
         blueMaterial.setSpecularColor(Color.BLUE)
 
-        final Box xAxis = new Box(AXIS_LENGTH, 1, 1)
-        final Box yAxis = new Box(1, AXIS_LENGTH, 1)
-        final Box zAxis = new Box(1, 1, AXIS_LENGTH)
+        Box xAxis = new Box(AXIS_LENGTH, 1, 1)
+        Box yAxis = new Box(1, AXIS_LENGTH, 1)
+        Box zAxis = new Box(1, 1, AXIS_LENGTH)
 
         xAxis.setMaterial(redMaterial)
         yAxis.setMaterial(greenMaterial)
@@ -117,19 +131,16 @@ class CADabro extends Application {
 
                 double modifier = 1.0
 
-                if (me.isControlDown()) {
-                    modifier = CONTROL_MULTIPLIER
-                }
                 if (me.isShiftDown()) {
                     modifier = SHIFT_MULTIPLIER
                 }
                 if (me.isPrimaryButtonDown()) {
-                    if (me.isAltDown()) {
-                        cameraXform.t.setX(cameraXform.t.getX() + mouseDeltaX * MOUSE_SPEED * modifier * TRACK_SPEED)
-                        cameraXform.t.setY(cameraXform.t.getY() - mouseDeltaY * MOUSE_SPEED * modifier * TRACK_SPEED)
-                    } else {
+                    if (me.isControlDown()) {
                         cameraXform.ry.setAngle(cameraXform.ry.getAngle() - mouseDeltaX * MOUSE_SPEED * modifier * ROTATION_SPEED)
-                        cameraXform.rx.setAngle(cameraXform.rx.getAngle() + mouseDeltaY * MOUSE_SPEED * modifier * ROTATION_SPEED)
+                        cameraXform.rx.setAngle(cameraXform.rx.getAngle() - mouseDeltaY * MOUSE_SPEED * modifier * ROTATION_SPEED)
+                    } else {
+                        cameraXform.t.setX(cameraXform.t.getX() - mouseDeltaX * MOUSE_SPEED * modifier * TRACK_SPEED)
+                        cameraXform.t.setY(cameraXform.t.getY() + mouseDeltaY * MOUSE_SPEED * modifier * TRACK_SPEED)
                     }
                 } else if (me.isSecondaryButtonDown()) {
                     double z = camera.getTranslateZ()
