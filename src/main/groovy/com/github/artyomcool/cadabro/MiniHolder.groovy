@@ -98,31 +98,35 @@ class MiniHolder {
         }
     }
 
-    def render() {
-        renderBg() + renderStrengthWall() - renderCuts() + renderHolder() + renderTrampoline()
+    def render(boolean flip = false) {
+        def r = renderBg() + renderStrengthWall() - renderCuts() + renderHolder() + renderTrampoline()
+        if (flip) {
+            return r.rcz(180)
+        }
+        return r
     }
 
-    def render2() {
-        def r = render()
+    def render2(boolean flip = false) {
+        def r = render(flip)
         return r + r.rcz(180).dy(r.maxY)
     }
 
-    def render(int cnt) {
+    def render(int cnt, boolean flip = false) {
         if (cnt == 1) {
-            return render()
+            return render(flip)
         }
 
-        def pair = render2()
+        def pair = render2(flip)
         if (cnt == 2) {
             return pair
         }
 
         def r = union()
         for (int i = 0; i < cnt - 1; i += 2) {
-            r << pair.dy(i * pair.height)
+            r << pair.dy(i * pair.height/2)
         }
         if (cnt & 1) {
-            r << render().dy((cnt - 2) * pair.height)
+            r << render(flip).dy((cnt - 1) * pair.height/2)
         }
         return r
     }
@@ -151,7 +155,7 @@ class MiniHolder {
         ]
     }
 
-    def renderCuts() {
+    def bottomCutsInfo() {
         def bottomCut = cylinder(bgHeight, diameterCut / 2)
                 .dxBy(-0.5)
                 .dxy(deltaX + width / 2, extraShift)
@@ -161,8 +165,17 @@ class MiniHolder {
         def bottomBridge = cube(bridgeSize, diameterCut, bgHeight)
                 .dxBy(-0.5)
                 .dxy(deltaX + width / 2, extraShift)
+        return [bottomCut, bottomHold + bottomBridge]
+    }
 
-        ~renderHolder() + bottomCut - bottomHold - bottomBridge - cube(width, strengthWall, bgHeight)
+    def bottomCuts() {
+        def c = bottomCutsInfo()
+        return c[0] - c[1]
+    }
+
+    def renderCuts() {
+        def c = bottomCutsInfo()
+        ~renderHolder() + c[0] - c[1] - cube(width, strengthWall, bgHeight)
     }
 
     def renderStrengthWall() {

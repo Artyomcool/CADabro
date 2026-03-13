@@ -17,6 +17,7 @@ class CardHolder {
 
     double innerRadius = 2
     double borderThickness = WALL
+    int captionFontSize = 8
 
     Double floorThickness = null
     Double outerRadius = null
@@ -25,8 +26,9 @@ class CardHolder {
     String caption = null
     String captionLeft = null
     String captionRight = null
-    Double captionFontSize = null
     Double teethHeight = null
+
+    Closure<CADObject3D> addToBase = null
 
     CardHolder(double innerWidth, double innerHeight, double innerDepth) {
         this.innerWidth = innerWidth
@@ -58,10 +60,6 @@ class CardHolder {
         cornerCutRadius == null ? Math.min(outerR, innerDepth) : cornerCutRadius
     }
 
-    double getCaptionFontHeight() {
-        captionFontSize == null ? totalDepth / 2 : captionFontSize
-    }
-
     double getTeethHeight() {
         return teethHeight == null ? 2 : teethHeight
     }
@@ -82,9 +80,21 @@ class CardHolder {
         withTeeth() - cuts()
     }
 
+    CADObject3D renderThin(double thinWall = 0.8, boolean withCut = true) {
+        def r = withTeeth() - cutsThin(thinWall) + title(wall - thinWall)
+        if (!withCut) {
+            return r
+        }
+        return r - makeCut(cutR, cornerCutR, wall, totalDepth).dx(totalWidth / 2)
+    }
+
     CADObject3D base() {
-        rcube(totalWidth, totalHeight, totalDepth, outerR) -
+        def r = rcube(totalWidth, totalHeight, totalDepth, outerR) -
                 rcube(innerWidth, innerHeight, innerDepth, innerR).dxyz(wall, wall, floor)
+        if (addToBase) {
+            r += addToBase()
+        }
+        return r
     }
 
     CADObject3D withTeeth() {
@@ -101,6 +111,10 @@ class CardHolder {
 
     CADObject3D cuts() {
         makeCut(cutR, cornerCutR, wall, totalDepth).dx(totalWidth / 2) + title()
+    }
+
+    CADObject3D cutsThin(double thinWall) {
+        makeThinCuts(totalWidth, totalHeight, totalDepth, wall, thinWall)
     }
 
     CardHolder adjustInnerToExternal() {
@@ -129,10 +143,10 @@ class CardHolder {
                         .dxz(bounds.max.x, bounds.max.z)
     }
 
-    CADObject3D title() {
+    CADObject3D title(double depth = Math.min(wall - 1, 2)) {
         def r = union()
 
-        if (caption != null) r += extrude(text(caption, null), Math.min(wall - 1, 2))
+        if (caption != null) r += extrude(text(caption, null, captionFontSize), depth)
                 .color(Color.GREENYELLOW)
                 .center()
                 .rx(-90)
@@ -140,7 +154,7 @@ class CardHolder {
                 .dyBy(-0.5)
                 .dxyz(totalWidth / 2, totalHeight, totalDepth / 2)
 
-        if (captionLeft != null) r += extrude(text(captionLeft, null), Math.min(wall - 1, 2))
+        if (captionLeft != null) r += extrude(text(captionLeft, null, captionFontSize), depth)
                 .color(Color.GREENYELLOW)
                 .center()
                 .rx(-90)
@@ -148,7 +162,7 @@ class CardHolder {
                 .dxBy(-0.5)
                 .dxyz(totalWidth, totalHeight / 2, totalDepth / 2)
 
-        if (captionRight != null) r += extrude(text(captionRight, null), Math.min(wall - 1, 2))
+        if (captionRight != null) r += extrude(text(captionRight, null, captionFontSize), depth)
                 .color(Color.GREENYELLOW)
                 .center()
                 .rx(-90)
@@ -159,6 +173,17 @@ class CardHolder {
         return r
     }
 
+    static CADObject3D makeThinCuts(double totalWidth, double totalHeight, double totalDepth, double wall, double thinWall) {
+        double r = 2
+        double wallDiff = wall - thinWall
+        CADObject3D cut = rrcube(totalWidth - r * 4, totalHeight - r * 4, totalDepth - r * 4)
+        return cut.endX().dxyz(wallDiff, r, r) +
+                cut.dxyz(totalWidth - wallDiff, r, r) +
+                cut.endY().dxyz(r, wallDiff, r) +
+                cut.dxyz(r, totalHeight - wallDiff, r)
+
+    }
+
     static CADObject3D withTeeth(CADObject3D obj, double tw, double th, double t, double d) {
         new Teeth().tap {
             teethWidth = tw
@@ -167,5 +192,4 @@ class CardHolder {
             delta = d
         }.renderAll(obj)
     }
-
 }

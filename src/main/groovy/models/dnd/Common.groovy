@@ -32,6 +32,13 @@ class Common {
         return new CardHolder(BIG_SQUARE, BIG_SQUARE, depth).withCut().color(Color.color(1, 0.5, 0.3))
     }
 
+    static CADObject3D thinBigSquareHolder(double wall, double floor, double depth) {
+        new CardHolder(BIG_SQUARE, BIG_SQUARE, depth).tap {
+            borderThickness = wall
+            floorThickness = floor
+        }.base() - rcut(BIG_SQUARE, depth + floor).dxy(wall * 4)
+    }
+
     static CADObject3D smallCircleHolder(int count, double depth, boolean simplify = false) {
         if (simplify) {
             return cube(
@@ -81,24 +88,22 @@ class Common {
         result & rcube(result.width, result.height, result.depth)
     }
 
-    static CADObject3D tilesHolder(double depth, boolean cut, boolean simplify = false) {
-        double wall = 2
-        double floor = 4
+    static CADObject3D tilesHolder(double depth, boolean cut, boolean simplify = false, double wall = 2, double floor = 4) {
         double totalWidth = wall + TILES_SQUARE_TO_LOCK + BIG_SQUARE + TILES_SQUARE_TO_LOCK + wall
 
         if (simplify) {
             return cube(totalWidth, totalWidth, depth + floor).color(Color.color(0.7, 0.2, 0.7, 0.75))
         }
 
-        def stroke = tilesHolderStroke2(2)
+        double r = Math.min(4, (TILES_SQUARE_TO_LOCK + wall) / 2)
+        def stroke = tilesHolderStroke2(wall, r)
 
-        def r = (extrude(stroke, depth).dz(floor) + rcube(totalWidth, totalWidth, floor, 4)).color(Color.color(0.7, 0.2, 0.7))
-        return cut ? (r - cutBottom()) : r
+        def res = extrude(stroke, depth).dz(floor) + rcube(totalWidth, totalWidth, floor, r)
+        cut = true
+        return cut ? (res - cutBottom(wall, floor)) : res
     }
 
-    static CADObject3D cutBottom() {
-        double wall = 2
-        double floor = 4
+    static CADObject3D cutBottom(double wall = 2, double floor = 4) {
         double r = 4
         double totalWidth = TILES_SQUARE_TO_LOCK + BIG_SQUARE + TILES_SQUARE_TO_LOCK
         cube(totalWidth, totalWidth, floor).dz(floor).dxy(wall, -(BIG_SQUARE - TILES_CORNER_TO_LOCK) + r) +
@@ -122,34 +127,32 @@ class Common {
         return drawer.close()
     }
 
-    static CADObject2D tilesHolderStroke2(double wall) {
+    static double totalWidthTilesHolderStroke(double wall) {
+        return wall + TILES_SQUARE_TO_LOCK + BIG_SQUARE + TILES_SQUARE_TO_LOCK + wall
+    }
+
+    static CADObject2D tilesHolderStroke2(double wall, double r) {
         // TODO reuse tilesHolderStroke
-        double totalWidth = wall + TILES_SQUARE_TO_LOCK + BIG_SQUARE + TILES_SQUARE_TO_LOCK + wall
-        return draw((TILES_CORNER_TO_LOCK + TILES_SQUARE_TO_LOCK + wall), 0)
-                .smooth(4).dx(-(TILES_CORNER_TO_LOCK + TILES_SQUARE_TO_LOCK + wall))
-                .smooth(4).dy(totalWidth)
-                .smooth(4).dx(totalWidth)
-                .smooth(4).dy(-totalWidth)
-                .smooth(4).dx(-(TILES_CORNER_TO_LOCK + TILES_SQUARE_TO_LOCK + wall))
-                .smooth(4).dy(wall + TILES_SQUARE_TO_LOCK)
-                .smooth(4).dx(TILES_CORNER_TO_LOCK)
-                .smooth(4).dy(TILES_CORNER_TO_LOCK)
-                .smooth(4).dx(TILES_SQUARE_TO_LOCK)
-                .smooth(4).dy(BIG_SQUARE - TILES_CORNER_TO_LOCK * 2)
-                .smooth(4).dx(-TILES_SQUARE_TO_LOCK)
-                .smooth(4).dy(TILES_CORNER_TO_LOCK)
-                .smooth(4).dx(-TILES_CORNER_TO_LOCK)
-                .smooth(4).dy(TILES_SQUARE_TO_LOCK)
-                .smooth(4).dx(-(BIG_SQUARE - TILES_CORNER_TO_LOCK * 2))
-                .smooth(4).dy(-TILES_SQUARE_TO_LOCK)
-                .smooth(4).dx(-TILES_CORNER_TO_LOCK)
-                .smooth(4).dy(-TILES_CORNER_TO_LOCK)
-                .smooth(4).dx(-TILES_SQUARE_TO_LOCK)
-                .smooth(4).dy(-(BIG_SQUARE - TILES_CORNER_TO_LOCK * 2))
-                .smooth(4).dx(TILES_SQUARE_TO_LOCK)
-                .smooth(4).dy(-TILES_CORNER_TO_LOCK)
-                .smooth(4).dx(TILES_CORNER_TO_LOCK)
-                .smooth(4).close(true)
+        double totalWidth = totalWidthTilesHolderStroke(wall)
+        return draw(0, totalWidth - TILES_CORNER_TO_LOCK)
+                .smooth(r).dy(TILES_CORNER_TO_LOCK)
+                .smooth(r).dx(totalWidth)
+                .smooth(r).dy(-totalWidth)
+                .smooth(r).dx(-(TILES_CORNER_TO_LOCK/2 + TILES_SQUARE_TO_LOCK + wall))
+                .smooth(r).dy(wall + TILES_SQUARE_TO_LOCK)
+                .smooth(r).dx(TILES_CORNER_TO_LOCK/2)
+                .smooth(r).dy(TILES_CORNER_TO_LOCK)
+                .smooth(r).dx(TILES_SQUARE_TO_LOCK)
+                .smooth(r).dy(BIG_SQUARE - TILES_CORNER_TO_LOCK * 2)
+                .smooth(r).dx(-TILES_SQUARE_TO_LOCK)
+                .smooth(r).dy(TILES_CORNER_TO_LOCK)
+                .smooth(r).dx(-TILES_CORNER_TO_LOCK)
+                .smooth(r).dy(TILES_SQUARE_TO_LOCK)
+                .smooth(r).dx(-(BIG_SQUARE - TILES_CORNER_TO_LOCK * 2))
+                .smooth(r).dy(-TILES_SQUARE_TO_LOCK)
+                .smooth(r).dx(-TILES_CORNER_TO_LOCK)
+                .smooth(r).dy(-TILES_CORNER_TO_LOCK)
+                .smooth(r).close(true)
     }
 
 }

@@ -71,9 +71,9 @@ abstract class CADObject2D {
         }
     }
 
-    static CADObject2D text(String text, Bounds2D bounds) {
+    static CADObject2D text(String text, Bounds2D bounds, int size = 8) {
         FontRenderContext frc = new FontRenderContext(null, true, true)
-        def glyphVector = new Font("Arial", Font.BOLD, 8).createGlyphVector(frc, text)
+        def glyphVector = new Font("Arial", Font.BOLD, size).createGlyphVector(frc, text)
         def iterator = glyphVector.outline.getPathIterator(null, 0.1)
         def tree2D = RegionBSPTree2D.empty()
         LinePath.Builder builder = null

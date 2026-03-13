@@ -230,6 +230,39 @@ abstract class CADObject3D {
         fromTree(withX ? -size.x : 0, withY ? -size.y : 0, withZ ? -size.z : 0) { tree }
     }
 
+    CADObject3D centerX(CADObject3D with) {
+        center(with, true, false, false)
+    }
+
+    CADObject3D centerY(CADObject3D with) {
+        center(with, false, true, false)
+    }
+
+    CADObject3D centerZ(CADObject3D with) {
+        center(with, false, false, true)
+    }
+
+    CADObject3D centerXY(CADObject3D with) {
+        center(with, true, true, false)
+    }
+
+    CADObject3D centerYZ(CADObject3D with) {
+        center(with, false, true, true)
+    }
+
+    CADObject3D centerXZ(CADObject3D with) {
+        center(with, true, false, true)
+    }
+
+    CADObject3D center(CADObject3D with, boolean withX = true, boolean withY = true, boolean withZ = true) {
+        center(withX, withY, withZ)
+                .dxyz(
+                        withX ? with.centerX : 0,
+                        withY ? with.centerY : 0,
+                        withZ ? with.centerZ : 0
+                )
+    }
+
     CADObject3D startX() {
         return start(true, false, false)
     }
@@ -240,6 +273,18 @@ abstract class CADObject3D {
 
     CADObject3D startZ() {
         return start(false, false, true)
+    }
+
+    CADObject3D startXY() {
+        return start(true, true, false)
+    }
+
+    CADObject3D startYZ() {
+        return start(false, true, true)
+    }
+
+    CADObject3D startXZ() {
+        return start(true, false, true)
     }
 
     CADObject3D centerX() {
@@ -278,6 +323,18 @@ abstract class CADObject3D {
         return end(false, false, true)
     }
 
+    CADObject3D endXY() {
+        return end(true, true, false)
+    }
+
+    CADObject3D endYZ() {
+        return end(false, true, true)
+    }
+
+    CADObject3D endXZ() {
+        return end(true, false, true)
+    }
+
     CADObject3D extrude3d() {
         return fromTree {
             def tree = asTree().toTree()
@@ -308,20 +365,20 @@ abstract class CADObject3D {
         }
     }
 
-    CADObject3D stripeX(int count) {
+    CADObject3D stripeX(int count, double dx = this.maxX) {
         def t = this
         union {
             count.times {
-                add t.dx(it * t.maxX)
+                add t.dx(it * dx)
             }
         }
     }
 
-    CADObject3D stripeY(int count) {
+    CADObject3D stripeY(int count, double dy = this.maxY) {
         def t = this
         union {
             count.times {
-                add t.dy(it * t.maxY)
+                add t.dy(it * dy)
             }
         }
     }
