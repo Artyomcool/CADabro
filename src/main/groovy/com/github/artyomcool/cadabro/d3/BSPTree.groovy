@@ -8,6 +8,7 @@ import org.apache.commons.geometry.core.partitioning.Split
 import org.apache.commons.geometry.core.partitioning.bsp.AbstractBSPTree
 import org.apache.commons.geometry.core.partitioning.bsp.AbstractRegionBSPTree
 import org.apache.commons.geometry.euclidean.threed.*
+import org.apache.commons.numbers.core.Precision
 
 import java.util.stream.Stream
 import java.util.stream.StreamSupport
@@ -15,6 +16,9 @@ import java.util.stream.StreamSupport
 import static com.github.artyomcool.cadabro.d3.CADObjects.e
 
 class BSPTree extends AbstractRegionBSPTree<Vector3D, RegionNode> implements BoundarySource3D {
+
+    private static final double EPS = 1e-6
+
     BSPTree(boolean full) {
         super(full)
     }
@@ -31,7 +35,7 @@ class BSPTree extends AbstractRegionBSPTree<Vector3D, RegionNode> implements Bou
         return tree
     }
 
-    public RegionNode copySubtree(RegionBSPTree3D.RegionNode3D src, RegionNode dst) {
+    RegionNode copySubtree(RegionBSPTree3D.RegionNode3D src, RegionNode dst) {
         // only copy if we're actually switching nodes
         // copy non-structural properties
         dst.setLocationValue(src.getLocation());
@@ -90,16 +94,15 @@ class BSPTree extends AbstractRegionBSPTree<Vector3D, RegionNode> implements Bou
         condense()
         List<PlaneConvexSubset> result = new ArrayList<>(32 * 1024)
         for (def node in nodes()) {
-            if (node.isInternal()) {
-                def boundary = node.cutBoundary
-                for (def f in boundary.outsideFacing) {
-                    PlaneConvexSubset p = (PlaneConvexSubset) f
-                    result.add(p)
-                }
-                for (def f in boundary.insideFacing) {
-                    PlaneConvexSubset p = (PlaneConvexSubset) f
-                    result.add(p.reverse())
-                }
+            if (!node.isInternal()) {
+                continue
+            }
+            def boundary = node.cutBoundary
+            for (def f in boundary.outsideFacing) {
+                result.add((PlaneConvexSubset) f)
+            }
+            for (def f in boundary.insideFacing) {
+                result.add((PlaneConvexSubset) f.reverse())
             }
         }
         return result
@@ -108,52 +111,98 @@ class BSPTree extends AbstractRegionBSPTree<Vector3D, RegionNode> implements Bou
     List<Triangle> triangles() {
         condense()
         List<Triangle> result = new ArrayList<>(32 * 1024)
-        TreeMap<Vector3D, Vector3D> remap = new TreeMap<>(new Comparator<Vector3D>() {
-            @Override
-            int compare(Vector3D o1, Vector3D o2) {
-                def compare = e.compare(o1.x, o2.x)
-                if (compare != 0) {
-                    return compare
-                }
-                compare = e.compare(o1.y, o2.y)
-                if (compare != 0) {
-                    return compare
-                }
-                return e.compare(o1.z, o2.z)
-            }
+
+        TreeMap<Vector3D, Vector3D> vertices = new TreeMap<>((Vector3D o1, Vector3D o2) -> {
+            int compare = e.compare(o1.x, o2.x)
+            if (compare != 0) return compare
+            compare = e.compare(o1.y, o2.y)
+            if (compare != 0) return compare
+            return e.compare(o1.z, o2.z)
         })
-        def repoint = (Vector3D p) -> {
-            return remap.putIfAbsent(p, p) ?: p
+
+        def getVertex = { Vector3D p ->
+            vertices.putIfAbsent(p, p) ?: p
         }
+
+        def polygons = []
         for (def node in nodes()) {
             if (node.isInternal()) {
                 def boundary = node.cutBoundary
                 for (def f in boundary.outsideFacing) {
                     PlaneConvexSubset p = (PlaneConvexSubset) f
-                    for (def t in p.toTriangles()) {
-                        def tr = new Triangle()
-                        tr.color = node.color
-                        tr.p1 = repoint(t.point1)
-                        tr.p2 = repoint(t.point2)
-                        tr.p3 = repoint(t.point3)
-                        tr.norm = p.plane.normal
-                        result.add(tr)
-                    }
+                    polygons.add([
+                            points: p.vertices.collect(getVertex),
+                            color: node.color,
+                            normal: p.plane.normal
+                    ])
                 }
                 for (def f in boundary.insideFacing) {
-                    PlaneConvexSubset p = (PlaneConvexSubset) f
-                    for (def t in p.reverse().toTriangles()) {
-                        def tr = new Triangle()
-                        tr.color = node.color
-                        tr.p1 = repoint(t.point1)
-                        tr.p2 = repoint(t.point2)
-                        tr.p3 = repoint(t.point3)
-                        tr.norm = p.plane.normal
-                        result.add(tr)
-                    }
+                    PlaneConvexSubset p = (PlaneConvexSubset) f.reverse()
+                    polygons.add([
+                            points: p.vertices.collect(getVertex),
+                            color: node.color,
+                            normal: p.plane.normal
+                    ])
                 }
             }
         }
+
+        // Split edges with vertices that lie on them
+        for (def poly in polygons) {
+            List<Vector3D> newPoints = []
+            for (int i = 0; i < poly.points.size(); i++) {
+                Vector3D p1 = poly.points[i]
+                Vector3D p2 = poly.points[(i + 1) % poly.points.size()]
+                newPoints.add(p1)
+
+                Vector3D dir = p2.subtract(p1)
+                double len = dir.norm()
+                if (len < 1e-10) continue
+                Vector3D unitDir = dir.multiply(1.0 / len)
+
+                // Find all vertices between p1 and p2
+                List<Vector3D> intermediate = []
+                Vector3D minP = Vector3D.of(Math.min(p1.x, p2.x) - 1e-9, Math.min(p1.y, p2.y) - 1e-9, Math.min(p1.z, p2.z) - 1e-9)
+                Vector3D maxP = Vector3D.of(Math.max(p1.x, p2.x) + 1e-9, Math.max(p1.y, p2.y) + 1e-9, Math.max(p1.z, p2.z) + 1e-9)
+
+                for (Vector3D v in vertices.subMap(minP, maxP).values()) {
+                    if (v == p1 || v == p2) continue
+                    if (e.compare(v.x, minP.x) < 0 || e.compare(v.x, maxP.x) > 0) continue
+                    if (e.compare(v.y, minP.y) < 0 || e.compare(v.y, maxP.y) > 0) continue
+                    if (e.compare(v.z, minP.z) < 0 || e.compare(v.z, maxP.z) > 0) continue
+
+                    Vector3D toV = v.subtract(p1)
+                    double distOnLine = toV.dot(unitDir)
+                    if (distOnLine > 1e-9 && distOnLine < len - 1e-9) {
+                        Vector3D projection = p1.add(unitDir.multiply(distOnLine))
+                        if (v.distance(projection) < 1e-9) {
+                            intermediate.add(v)
+                        }
+                    }
+                }
+                if (!intermediate.isEmpty()) {
+                    intermediate.sort { v -> v.subtract(p1).norm() }
+                    newPoints.addAll(intermediate)
+                }
+            }
+            poly.points = newPoints
+        }
+
+        // Triangulate
+        for (def poly in polygons) {
+            if (poly.points.size() < 3) continue
+            Vector3D p1 = poly.points[0]
+            for (int i = 1; i < poly.points.size() - 1; i++) {
+                result.add(new Triangle(
+                        p1: p1,
+                        p2: poly.points[i],
+                        p3: poly.points[i + 1],
+                        norm: poly.normal,
+                        color: poly.color
+                ))
+            }
+        }
+
         return result
     }
 

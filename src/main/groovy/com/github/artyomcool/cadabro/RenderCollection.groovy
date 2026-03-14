@@ -22,6 +22,10 @@ class RenderCollection {
         }
     }
 
+    void render(CADObject3D obj) {
+        add obj, true
+    }
+
     void add(List<CADObject3D> objs,
                boolean renderOnly = false,
                boolean wiresOnly = false

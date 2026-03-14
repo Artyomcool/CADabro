@@ -1,8 +1,10 @@
 package com.github.artyomcool.cadabro
 
 import com.github.artyomcool.cadabro.d3.BSPTree
+import com.github.artyomcool.cadabro.d3.CADObject3D
 import javafx.application.Application
 import javafx.event.EventHandler
+import javafx.geometry.Point3D
 import javafx.scene.DepthTest
 import javafx.scene.Group
 import javafx.scene.PerspectiveCamera
@@ -17,7 +19,7 @@ import javafx.scene.shape.Box
 import javafx.scene.shape.DrawMode
 import javafx.scene.shape.MeshView
 import javafx.scene.shape.TriangleMesh
-import javafx.scene.text.Text
+
 import javafx.stage.Stage
 import models.common.CardHolder
 
@@ -28,34 +30,32 @@ import static com.github.artyomcool.cadabro.d3.CADObjects.extrude
 
 class CADabro extends Application {
 
+    static CADObject3D txt(String t, Color color) {
+        extrude(text(t), 1).color(color).rx(-90)
+    }
+
     RenderCollection collection = new RenderCollection().tap {
         add new CardHolder(89.6, 64.4, 20).tap {
             caption = "CAPTION"
             captionLeft = "LEFT"
             captionRight = "RIGHT"
         }.render()
-        add extrude(text("X"), 1).color(Color.RED).rx(-90).dx(150), true
-        add extrude(text("Y"), 1).color(Color.BLUE).rx(-90).rcz(90).dy(150), true
-        add extrude(text("Z"), 1).color(Color.GREEN).rx(-90).dz(150), true
+
+        //add cube(10) - cube(5)
+
+        render txt("X", Color.RED).dx(150)
+        render txt("Y", Color.BLUE).rcz(90).dy(150)
+        render txt("Z", Color.GREEN).dz(150)
     }
 
     final Group root = new Group()
     final Form axisGroup = new Form()
-    final Form moleculeGroup = new Form()
+    final Form cadGroup = new Form()
     final Form world = new Form()
     final PerspectiveCamera camera = new PerspectiveCamera(true)
     final Form cameraXform = new Form()
     final Form cameraXform2 = new Form()
     final Form cameraXform3 = new Form()
-
-    private static final double CAMERA_INITIAL_DISTANCE = -500
-    private static final double CAMERA_INITIAL_X_ANGLE = 120.0
-    private static final double CAMERA_INITIAL_Y_ANGLE = 30.0
-    private static final double CAMERA_NEAR_CLIP = 0.1
-    private static final double CAMERA_FAR_CLIP = 10000.0
-    private static final double AXIS_LENGTH = 250.0
-    private static final double CONTROL_MULTIPLIER = 0.1
-    private static final double SHIFT_MULTIPLIER = 10.0
 
     double mousePosX
     double mousePosY
@@ -64,125 +64,110 @@ class CADabro extends Application {
     double mouseDeltaX
     double mouseDeltaY
 
+    private void resetCamera() {
+        cameraXform2.t.x = 0
+        cameraXform2.t.y = 0
+        camera.translateZ = -500
+        cameraXform.ry.angle = 30
+        cameraXform.rx.angle = 120
+    }
+
     private void buildCamera() {
-        System.out.println("buildCamera()")
         root.getChildren().add(cameraXform)
         cameraXform.getChildren().add(cameraXform2)
         cameraXform2.getChildren().add(cameraXform3)
         cameraXform3.getChildren().add(camera)
 
-        camera.setNearClip(CAMERA_NEAR_CLIP)
-        camera.setFarClip(CAMERA_FAR_CLIP)
-        camera.setTranslateZ(CAMERA_INITIAL_DISTANCE)
-        cameraXform.ry.setAngle(CAMERA_INITIAL_Y_ANGLE)
-        cameraXform.rx.setAngle(CAMERA_INITIAL_X_ANGLE)
-
-        //cameraXform.t.y = -100
-        //cameraXform.t.x = 50
+        camera.tap {
+            nearClip = 0.1
+            farClip = 10000
+        }
+        cameraXform.tap {
+            t.x = 50
+            t.y = -100
+        }
+        resetCamera()
     }
 
     private void buildAxes() {
-        PhongMaterial redMaterial = new PhongMaterial()
-        redMaterial.setDiffuseColor(Color.DARKRED)
-        redMaterial.setSpecularColor(Color.RED)
-
-        PhongMaterial greenMaterial = new PhongMaterial()
-        greenMaterial.setDiffuseColor(Color.DARKGREEN)
-        greenMaterial.setSpecularColor(Color.GREEN)
-
-        PhongMaterial blueMaterial = new PhongMaterial()
-        blueMaterial.setDiffuseColor(Color.DARKBLUE)
-        blueMaterial.setSpecularColor(Color.BLUE)
-
-        Box xAxis = new Box(AXIS_LENGTH, 1, 1)
-        Box yAxis = new Box(1, AXIS_LENGTH, 1)
-        Box zAxis = new Box(1, 1, AXIS_LENGTH)
-
-        xAxis.setMaterial(redMaterial)
-        yAxis.setMaterial(greenMaterial)
-        zAxis.setMaterial(blueMaterial)
+        double axisLength = 250
+        Box xAxis = new Box(axisLength, 1, 1).tap {
+            material = new PhongMaterial().tap {
+                diffuseColor = Color.DARKRED
+                specularColor = Color.RED
+            }
+        }
+        Box yAxis = new Box(1, axisLength, 1).tap {
+            material = new PhongMaterial().tap {
+                diffuseColor = Color.DARKGREEN
+                specularColor = Color.GREEN
+            }
+        }
+        Box zAxis = new Box(1, 1, axisLength).tap {
+            material = new PhongMaterial().tap {
+                diffuseColor = Color.DARKBLUE
+                specularColor = Color.BLUE
+            }
+        }
 
         axisGroup.getChildren().addAll(xAxis, yAxis, zAxis)
         world.getChildren().addAll(axisGroup)
     }
 
     private void handleMouse(Scene scene) {
-        scene.setOnMousePressed(new EventHandler<MouseEvent>() {
-            @Override
-            public void handle(MouseEvent me) {
-                mousePosX = me.getSceneX()
-                mousePosY = me.getSceneY()
-                mouseOldX = me.getSceneX()
-                mouseOldY = me.getSceneY()
-            }
-        })
-        scene.setOnMouseDragged(new EventHandler<MouseEvent>() {
-            @Override
-            public void handle(MouseEvent me) {
-                mouseOldX = mousePosX
-                mouseOldY = mousePosY
-                mousePosX = me.getSceneX()
-                mousePosY = me.getSceneY()
-                mouseDeltaX = (mousePosX - mouseOldX)
-                mouseDeltaY = (mousePosY - mouseOldY)
+        scene.onMousePressed = { MouseEvent me ->
+            mousePosX = me.getSceneX()
+            mousePosY = me.getSceneY()
+            mouseOldX = me.getSceneX()
+            mouseOldY = me.getSceneY()
+        }
+        scene.onMouseDragged = { MouseEvent me ->
+            mouseOldX = mousePosX
+            mouseOldY = mousePosY
+            mousePosX = me.getSceneX()
+            mousePosY = me.getSceneY()
+            mouseDeltaX = (mousePosX - mouseOldX)
+            mouseDeltaY = (mousePosY - mouseOldY)
 
-                if (me.isPrimaryButtonDown()) {
-                    if (me.isControlDown()) {
-                        cameraXform.ry.setAngle(cameraXform.ry.getAngle() - mouseDeltaX)
-                        cameraXform.rx.setAngle(cameraXform.rx.getAngle() - mouseDeltaY)
-                    } else {
-                        def cameraPos = camera.localToScene(0.0, 0.0, 0.0)
+            if (me.isPrimaryButtonDown()) {
+                if (me.isControlDown()) {
+                    cameraXform.ry.angle -= mouseDeltaX
+                    cameraXform.rx.angle -= mouseDeltaY
+                } else {
+                    Point3D cameraPos = camera.localToScene(0, 0, 0)
+                    double distance = Math.sqrt(cameraPos.x ** 2 + cameraPos.y ** 2 + cameraPos.z ** 2)
 
-                        double distance = Math.sqrt(
-                                cameraPos.getX() * cameraPos.getX() +
-                                        cameraPos.getY() * cameraPos.getY() +
-                                        cameraPos.getZ() * cameraPos.getZ()
-                        )
+                    double fov = Math.toRadians(camera.getFieldOfView())
+                    double unitsPerPixel = 2 * distance * Math.tan(fov / 2) / scene.height
 
-                        double fov = Math.toRadians(camera.getFieldOfView())
-                        double tanHalf = Math.tan(fov / 2.0)
-                        double aspect = scene.getWidth() / scene.getHeight()
-
-                        double unitsPerPixelY = 2.0 * distance * tanHalf / scene.getHeight()
-                        double unitsPerPixelX = 2.0 * distance * tanHalf * aspect / scene.getWidth()
-
-                        cameraXform2.t.setX(
-                                cameraXform2.t.getX() - mouseDeltaX * unitsPerPixelX
-                        )
-                        cameraXform2.t.setY(
-                                cameraXform2.t.getY() - mouseDeltaY * unitsPerPixelY
-                        )
-
-                    }
-                } else if (me.isSecondaryButtonDown()) {
-                    double z = camera.getTranslateZ()
-                    double newZ = z + mouseDeltaX
-                    camera.setTranslateZ(newZ)
+                    cameraXform2.t.x -= mouseDeltaX * unitsPerPixel
+                    cameraXform2.t.y -= mouseDeltaY * unitsPerPixel
                 }
+            } else if (me.isSecondaryButtonDown()) {
+                double z = camera.getTranslateZ()
+                double newZ = z + mouseDeltaX + mouseDeltaY
+                camera.setTranslateZ(newZ)
             }
-        })
+        }
     }
 
     private void handleKeyboard(Scene scene) {
         scene.setOnKeyPressed(new EventHandler<KeyEvent>() {
             @Override
-            public void handle(KeyEvent event) {
+            void handle(KeyEvent event) {
                 switch (event.getCode()) {
                     case KeyCode.Z:
-                        cameraXform2.t.setX(0.0)
-                        cameraXform2.t.setY(0.0)
-                        camera.setTranslateZ(CAMERA_INITIAL_DISTANCE)
-                        cameraXform.ry.setAngle(CAMERA_INITIAL_Y_ANGLE)
-                        cameraXform.rx.setAngle(CAMERA_INITIAL_X_ANGLE)
+                        resetCamera()
                         break
                     case KeyCode.X:
-                        axisGroup.setVisible(!axisGroup.isVisible())
+                        axisGroup.visible = !axisGroup.visible
                         break
                     case KeyCode.V:
-                        moleculeGroup.setVisible(!moleculeGroup.isVisible())
+                        cadGroup.visible = !cadGroup.visible
                         break
                     case KeyCode.T:
                         double dx = 0
+
                         List<BSPTree.Triangle> triangles = []
                         for (def render in collection.renders) {
                             if (!render.renderOnly) {
@@ -191,7 +176,22 @@ class CADabro extends Application {
                                 dx = obj.bounds().max.x + 5
                             }
                         }
-                        STLWriter.writeToFile(triangles, Path.of("e.stl"))
+
+                        double[] r = new double[triangles.size() * 9]
+                        int n = 0
+                        for (def t in triangles) {
+                            r[n++] = -t.p1.x
+                            r[n++] = t.p1.y
+                            r[n++] = t.p1.z
+                            r[n++] = -t.p2.x
+                            r[n++] = t.p2.y
+                            r[n++] = t.p2.z
+                            r[n++] = -t.p3.x
+                            r[n++] = t.p3.y
+                            r[n++] = t.p3.z
+                        }
+
+                        STLWriter.writeToFile(r, Path.of("e.stl"))
                         break
                 }
             }
@@ -291,10 +291,10 @@ class CADabro extends Application {
         wiredMeshView.mesh = wiredMesh
         wiredMeshView.drawMode = DrawMode.LINE
 
-        moleculeGroup.getChildren().add(solidMeshView)
-        moleculeGroup.getChildren().add(wiredMeshView)
+        cadGroup.getChildren().add(solidMeshView)
+        cadGroup.getChildren().add(wiredMeshView)
 
-        world.getChildren().addAll(moleculeGroup)
+        world.getChildren().addAll(cadGroup)
     }
 
     @Override
