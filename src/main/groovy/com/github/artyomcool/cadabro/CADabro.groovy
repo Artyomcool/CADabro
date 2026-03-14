@@ -34,9 +34,9 @@ class CADabro extends Application {
             captionLeft = "LEFT"
             captionRight = "RIGHT"
         }.render()
-        add extrude(text("X", null, 8), 1).color(Color.RED).rx(-90).dx(150), true
-        add extrude(text("Y", null, 8), 1).color(Color.BLUE).rx(-90).rcz(90).dy(150), true
-        add extrude(text("Z", null, 8), 1).color(Color.GREEN).rx(-90).dz(150), true
+        add extrude(text("X"), 1).color(Color.RED).rx(-90).dx(150), true
+        add extrude(text("Y"), 1).color(Color.BLUE).rx(-90).rcz(90).dy(150), true
+        add extrude(text("Z"), 1).color(Color.GREEN).rx(-90).dz(150), true
     }
 
     final Group root = new Group()

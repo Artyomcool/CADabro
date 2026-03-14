@@ -146,14 +146,14 @@ class CardHolder {
     CADObject3D title(double depth = Math.min(wall - 1, 2)) {
         def r = union()
 
-        if (caption != null) r += extrude(text(caption, null, captionFontSize), depth)
+        if (caption != null) r += extrude(text(caption, captionFontSize), depth)
                 .color(Color.GREENYELLOW)
                 .center()
                 .rx(-90)
                 .dyBy(-0.5)
                 .dxyz(totalWidth / 2, totalHeight, totalDepth / 2)
 
-        if (captionLeft != null) r += extrude(text(captionLeft, null, captionFontSize), depth)
+        if (captionLeft != null) r += extrude(text(captionLeft, captionFontSize), depth)
                 .color(Color.GREENYELLOW)
                 .center()
                 .rx(-90)
@@ -161,7 +161,7 @@ class CardHolder {
                 .dxBy(-0.5)
                 .dxyz(totalWidth, totalHeight / 2, totalDepth / 2)
 
-        if (captionRight != null) r += extrude(text(captionRight, null, captionFontSize), depth)
+        if (captionRight != null) r += extrude(text(captionRight, captionFontSize), depth)
                 .color(Color.GREENYELLOW)
                 .center()
                 .rx(-90)

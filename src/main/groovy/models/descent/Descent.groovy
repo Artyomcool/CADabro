@@ -343,7 +343,7 @@ class Descent {
             add((cylinder(smallLayerH * 6, d / 2).centerXY() - cylinder(smallLayerH * 6, d / 2 - 5.6).centerXY()).dz(smallLayerH * 2))
 
             for (int i = 1; i <= c; i++) {
-                def txt = text(i + "", null)
+                def txt = text(i + "")
                 add txt
                         .extrude(smallLayerH)
                         .scaleXY(font / txt.height)

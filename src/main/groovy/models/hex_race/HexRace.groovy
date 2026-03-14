@@ -109,7 +109,7 @@ class HexRace {
                 .dz(hh)
 
         if (_text != "") {
-            def t = extrude(text(_text, null), 0.2)
+            def t = extrude(text(_text), 0.2)
             r += t.center(true, true, false).dz(hh - 0.6)
         }
 
