@@ -2,6 +2,7 @@ package com.github.artyomcool.cadabro
 
 import com.github.artyomcool.cadabro.d3.BSPTree
 import com.github.artyomcool.cadabro.d3.CADObject3D
+import com.github.artyomcool.cadabro.d3.Triangle
 import javafx.application.Application
 import javafx.event.EventHandler
 import javafx.geometry.Point3D
@@ -168,7 +169,7 @@ class CADabro extends Application {
                     case KeyCode.T:
                         double dx = 0
 
-                        List<BSPTree.Triangle> triangles = []
+                        List<Triangle> triangles = []
                         for (def render in collection.renders) {
                             if (!render.renderOnly) {
                                 def obj = render.obj.center().dxyzBy(0.5).dx(dx)
@@ -233,7 +234,7 @@ class CADabro extends Application {
         TriangleMesh solidMesh = new TriangleMesh()
         TriangleMesh wiredMesh = new TriangleMesh()
         int i = 0
-        for (BSPTree.Triangle tr in trianglesSolid) {
+        for (Triangle tr in trianglesSolid) {
             solidMesh.getPoints().addAll(
                     (float) tr.p2.x,
                     (float) tr.p2.z,
@@ -259,7 +260,7 @@ class CADabro extends Application {
         }
 
         i = 0
-        for (BSPTree.Triangle tr in trianglesWires) {
+        for (Triangle tr in trianglesWires) {
             wiredMesh.getPoints().addAll(
                     (float) tr.p2.x,
                     (float) tr.p2.z,
