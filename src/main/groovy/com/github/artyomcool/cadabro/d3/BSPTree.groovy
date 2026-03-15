@@ -108,100 +108,236 @@ class BSPTree extends AbstractRegionBSPTree<Vector3D, RegionNode> implements Bou
         return result
     }
 
+    static class VectorKey {
+        final double x, y, z
+        private final int hashCode
+
+        VectorKey(Vector3D v, Precision.DoubleEquivalence e) {
+            this.x = Math.round(v.x / 1e-7) * 1e-7
+            this.y = Math.round(v.y / 1e-7) * 1e-7
+            this.z = Math.round(v.z / 1e-7) * 1e-7
+            
+            long hx = Double.doubleToLongBits(x)
+            long hy = Double.doubleToLongBits(y)
+            long hz = Double.doubleToLongBits(z)
+            int h = (int) (hx ^ (hx >>> 32))
+            h = 31 * h + (int) (hy ^ (hy >>> 32))
+            h = 31 * h + (int) (hz ^ (hz >>> 32))
+            this.hashCode = h
+        }
+
+        @Override
+        boolean equals(Object o) {
+            if (this === o) return true
+            if (!(o instanceof VectorKey)) return false
+            VectorKey that = (VectorKey) o
+            return Double.compare(that.x, x) == 0 &&
+                    Double.compare(that.y, y) == 0 &&
+                    Double.compare(that.z, z) == 0
+        }
+
+        @Override
+        int hashCode() {
+            return hashCode
+        }
+    }
+
+    static class PolygonData {
+        List<Vector3D> points
+        Color color
+        Vector3D normal
+    }
+
     List<Triangle> triangles() {
+        long start = System.currentTimeMillis()
+        def caller = Thread.currentThread().stackTrace.find { it.className != BSPTree.class.name && it.className != 'java.lang.Thread' && !it.className.contains(".groovy") }
+        def callerStr = caller ? "${caller.className.tokenize('$')[0].tokenize('.')[-1]}.${caller.methodName}:${caller.lineNumber}" : "unknown"
+
         condense()
         List<Triangle> result = new ArrayList<>(32 * 1024)
 
-        TreeMap<Vector3D, Vector3D> vertices = new TreeMap<>((Vector3D o1, Vector3D o2) -> {
-            int compare = e.compare(o1.x, o2.x)
-            if (compare != 0) return compare
-            compare = e.compare(o1.y, o2.y)
-            if (compare != 0) return compare
-            return e.compare(o1.z, o2.z)
-        })
+        Map<VectorKey, Vector3D> vertices = new HashMap<>(32 * 1024)
 
         def getVertex = { Vector3D p ->
-            vertices.putIfAbsent(p, p) ?: p
+            def key = new VectorKey(p, e)
+            def existing = vertices.get(key)
+            if (existing != null) return existing
+            vertices.put(key, p)
+            return p
         }
 
-        def polygons = []
+        List<PolygonData> polygons = new ArrayList<>(16 * 1024)
         for (def node in nodes()) {
             if (node.isInternal()) {
                 def boundary = node.cutBoundary
+                def color = node.color
                 for (def f in boundary.outsideFacing) {
                     PlaneConvexSubset p = (PlaneConvexSubset) f
-                    polygons.add([
+                    polygons.add(new PolygonData(
                             points: p.vertices.collect(getVertex),
-                            color: node.color,
+                            color: color,
                             normal: p.plane.normal
-                    ])
+                    ))
                 }
                 for (def f in boundary.insideFacing) {
                     PlaneConvexSubset p = (PlaneConvexSubset) f.reverse()
-                    polygons.add([
+                    polygons.add(new PolygonData(
                             points: p.vertices.collect(getVertex),
-                            color: node.color,
+                            color: color,
                             normal: p.plane.normal
-                    ])
+                    ))
                 }
             }
         }
 
+        long polygonsDone = System.currentTimeMillis()
+        println "[$callerStr] triangles: polygons collected in ${polygonsDone - start}ms, vertices: ${vertices.size()}, polygons: ${polygons.size()}"
+
+        if (polygons.isEmpty()) return result
+
+        // Calculate bounding box to determine grid scale
+        double minVx = Double.POSITIVE_INFINITY, minVy = Double.POSITIVE_INFINITY, minVz = Double.POSITIVE_INFINITY
+        double maxVx = Double.NEGATIVE_INFINITY, maxVy = Double.NEGATIVE_INFINITY, maxVz = Double.NEGATIVE_INFINITY
+        for (Vector3D v in vertices.values()) {
+            if (v.x < minVx) minVx = v.x
+            if (v.y < minVy) minVy = v.y
+            if (v.z < minVz) minVz = v.z
+            if (v.x > maxVx) maxVx = v.x
+            if (v.y > maxVy) maxVy = v.y
+            if (v.z > maxVz) maxVz = v.z
+        }
+        
+        double sizeX = maxVx - minVx, sizeY = maxVy - minVy, sizeZ = maxVz - minVz
+        double maxDim = Math.max(sizeX, Math.max(sizeY, sizeZ))
+        double gridScale = Math.max(1e-3, maxDim / 100.0) // Finer grid
+        
+        Map<Long, List<Vector3D>> grid = new HashMap<>(vertices.size())
+        def getGridKey = { double val -> (long) Math.floor(val / gridScale) }
+        
+        for (Vector3D v in vertices.values()) {
+            long gx = getGridKey(v.x)
+            long gy = getGridKey(v.y)
+            long gz = getGridKey(v.z)
+            long key = gx ^ (gy << 20) ^ (gz << 40)
+            List<Vector3D> cell = grid.get(key)
+            if (cell == null) {
+                cell = new ArrayList<Vector3D>(4)
+                grid.put(key, cell)
+            }
+            cell.add(v)
+        }
+
+        long gridDone = System.currentTimeMillis()
+        println "[$callerStr] triangles: grid built in ${gridDone - polygonsDone}ms"
+
         // Split edges with vertices that lie on them
-        for (def poly in polygons) {
-            List<Vector3D> newPoints = []
-            for (int i = 0; i < poly.points.size(); i++) {
-                Vector3D p1 = poly.points[i]
-                Vector3D p2 = poly.points[(i + 1) % poly.points.size()]
+        List<Vector3D> candidates = new ArrayList<>(256)
+        for (PolygonData poly in polygons) {
+            List<Vector3D> polyPoints = poly.points
+            int initialSize = polyPoints.size()
+            List<Vector3D> newPoints = new ArrayList<>(initialSize * 2)
+            for (int i = 0; i < initialSize; i++) {
+                Vector3D p1 = polyPoints.get(i)
+                Vector3D p2 = polyPoints.get((i + 1) % initialSize)
                 newPoints.add(p1)
 
-                Vector3D dir = p2.subtract(p1)
-                double len = dir.norm()
-                if (len < 1e-10) continue
-                Vector3D unitDir = dir.multiply(1.0 / len)
+                double dx = p2.x - p1.x
+                double dy = p2.y - p1.y
+                double dz = p2.z - p1.z
+                double lenSq = dx * dx + dy * dy + dz * dz
+                if (lenSq < 1e-20) continue
+                double len = Math.sqrt(lenSq)
+                double invLen = 1.0 / len
+                double ux = dx * invLen
+                double uy = dy * invLen
+                double uz = dz * invLen
 
-                // Find all vertices between p1 and p2
-                List<Vector3D> intermediate = []
-                Vector3D minP = Vector3D.of(Math.min(p1.x, p2.x) - 1e-9, Math.min(p1.y, p2.y) - 1e-9, Math.min(p1.z, p2.z) - 1e-9)
-                Vector3D maxP = Vector3D.of(Math.max(p1.x, p2.x) + 1e-9, Math.max(p1.y, p2.y) + 1e-9, Math.max(p1.z, p2.z) + 1e-9)
+                double minX = Math.min(p1.x, p2.x) - 1e-9
+                double minY = Math.min(p1.y, p2.y) - 1e-9
+                double minZ = Math.min(p1.z, p2.z) - 1e-9
+                double maxX = Math.max(p1.x, p2.x) + 1e-9
+                double maxY = Math.max(p1.y, p2.y) + 1e-9
+                double maxZ = Math.max(p1.z, p2.z) + 1e-9
 
-                for (Vector3D v in vertices.subMap(minP, maxP).values()) {
-                    if (v == p1 || v == p2) continue
-                    if (e.compare(v.x, minP.x) < 0 || e.compare(v.x, maxP.x) > 0) continue
-                    if (e.compare(v.y, minP.y) < 0 || e.compare(v.y, maxP.y) > 0) continue
-                    if (e.compare(v.z, minP.z) < 0 || e.compare(v.z, maxP.z) > 0) continue
-
-                    Vector3D toV = v.subtract(p1)
-                    double distOnLine = toV.dot(unitDir)
-                    if (distOnLine > 1e-9 && distOnLine < len - 1e-9) {
-                        Vector3D projection = p1.add(unitDir.multiply(distOnLine))
-                        if (v.distance(projection) < 1e-9) {
-                            intermediate.add(v)
+                candidates.clear()
+                long gx1 = getGridKey(minX), gx2 = getGridKey(maxX)
+                long gy1 = getGridKey(minY), gy2 = getGridKey(maxY)
+                long gz1 = getGridKey(minZ), gz2 = getGridKey(maxZ)
+                
+                for (long x = gx1; x <= gx2; x++) {
+                    for (long y = gy1; y <= gy2; y++) {
+                        long xyKey = x ^ (y << 20)
+                        for (long z = gz1; z <= gz2; z++) {
+                            long key = xyKey ^ (z << 40)
+                            List<Vector3D> cell = grid.get(key)
+                            if (cell != null) {
+                                for (int j = 0; j < cell.size(); j++) {
+                                    Vector3D v = cell.get(j)
+                                    if (v === p1 || v === p2) continue
+                                    if (v.x < minX || v.x > maxX || v.y < minY || v.y > maxY || v.z < minZ || v.z > maxZ) continue
+                                    
+                                    double tvx = v.x - p1.x
+                                    double tvy = v.y - p1.y
+                                    double tvz = v.z - p1.z
+                                    double distOnLine = tvx * ux + tvy * uy + tvz * uz
+                                    
+                                    if (distOnLine > 1e-9 && distOnLine < len - 1e-9) {
+                                        double prx = p1.x + ux * distOnLine
+                                        double pry = p1.y + uy * distOnLine
+                                        double prz = p1.z + uz * distOnLine
+                                        
+                                        double dpx = v.x - prx
+                                        double dpy = v.y - pry
+                                        double dpz = v.z - prz
+                                        if (dpx * dpx + dpy * dpy + dpz * dpz < 1e-18) {
+                                            candidates.add(v)
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
-                if (!intermediate.isEmpty()) {
-                    intermediate.sort { v -> v.subtract(p1).norm() }
-                    newPoints.addAll(intermediate)
+                
+                if (!candidates.isEmpty()) {
+                    if (candidates.size() > 1) {
+                        candidates.sort { v -> 
+                            double dvx = v.x - p1.x
+                            double dvy = v.y - p1.y
+                            double dvz = v.z - p1.z
+                            dvx * dvx + dvy * dvy + dvz * dvz
+                        }
+                    }
+                    newPoints.addAll(candidates)
                 }
             }
             poly.points = newPoints
         }
 
+        long splitDone = System.currentTimeMillis()
+        println "[$callerStr] triangles: edges split in ${splitDone - gridDone}ms"
+
         // Triangulate
-        for (def poly in polygons) {
-            if (poly.points.size() < 3) continue
-            Vector3D p1 = poly.points[0]
-            for (int i = 1; i < poly.points.size() - 1; i++) {
+        for (PolygonData poly in polygons) {
+            List<Vector3D> points = poly.points
+            int ptsSize = points.size()
+            if (ptsSize < 3) continue
+            Vector3D p1 = points.get(0)
+            Vector3D normal = poly.normal
+            Color color = poly.color
+            for (int i = 1; i < ptsSize - 1; i++) {
                 result.add(new Triangle(
                         p1: p1,
-                        p2: poly.points[i],
-                        p3: poly.points[i + 1],
-                        norm: poly.normal,
-                        color: poly.color
+                        p2: points.get(i),
+                        p3: points.get(i + 1),
+                        norm: normal,
+                        color: color
                 ))
             }
         }
+
+        long end = System.currentTimeMillis()
+        println "[$callerStr] triangles: triangulated in ${end - splitDone}ms, total ${end - start}ms"
 
         return result
     }

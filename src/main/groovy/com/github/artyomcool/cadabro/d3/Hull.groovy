@@ -25,9 +25,9 @@ class Hull extends Union {
     @Override
     BSPTree toTree() {
         def tree = super.toTree();
-        List<Vector3D> points = []
-        for (def c in tree.triangles()) {
-            points << c.p1 << c.p2 << c.p3
+        List<Vector3D> points = new ArrayList<>(4096)
+        for (def c in tree.planes()) {
+            points.addAll(c.vertices)
         }
         return hull(points)
     }

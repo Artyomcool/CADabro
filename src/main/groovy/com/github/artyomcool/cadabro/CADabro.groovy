@@ -35,11 +35,11 @@ class CADabro extends Application {
     }
 
     RenderCollection collection = new RenderCollection().tap {
-        add new CardHolder(89.6, 64.4, 20).tap {
+        add(new CardHolder(89.6, 64.4, 20).tap {
             caption = "CAPTION"
             captionLeft = "LEFT"
             captionRight = "RIGHT"
-        }.render()
+        }.render()).name = "CardHolder"
 
         //add cube(10) - cube(5)
 
@@ -209,6 +209,7 @@ class CADabro extends Application {
         def trianglesWires = []
 
         for (def r in collection.renders) {
+            println r.name
             def t = r.obj.asTree().triangles()
             (r.wiresOnly ? trianglesWires : trianglesSolid).addAll(t)
             for (def tr in t) {

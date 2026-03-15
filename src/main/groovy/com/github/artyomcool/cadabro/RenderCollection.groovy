@@ -8,11 +8,12 @@ class RenderCollection {
     static class Render {
         boolean renderOnly, wiresOnly
         CADObject3D obj
+        String name
     }
 
     List<Render> renders = []
 
-    void add(CADObject3D obj,
+    Render add(CADObject3D obj,
                boolean renderOnly = false,
                boolean wiresOnly = false
     ) {
