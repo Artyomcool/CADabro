@@ -2,9 +2,12 @@ package com.github.artyomcool.cadabro.d3;
 
 import javafx.scene.paint.Color;
 import org.apache.commons.geometry.core.partitioning.HyperplaneConvexSubset;
-import org.apache.commons.geometry.core.partitioning.bsp.RegionCutBoundary;
+import org.apache.commons.geometry.core.partitioning.Split;
+import org.apache.commons.geometry.core.partitioning.SplitLocation;
+import org.apache.commons.geometry.core.partitioning.bsp.AbstractRegionBSPTree;
 import org.apache.commons.geometry.euclidean.threed.PlaneConvexSubset;
 import org.apache.commons.geometry.euclidean.threed.Vector3D;
+import com.github.artyomcool.cadabro.SamplingProfiler;
 
 import java.util.*;
 
@@ -44,47 +47,102 @@ public class BSPTreeTriangulator {
         }
     }
 
+    private static void characterizeHyperplaneSubset(
+            HyperplaneConvexSubset<Vector3D> sub,
+            AbstractRegionBSPTree.AbstractRegionNode<Vector3D, RegionNode> node,
+            PolygonCollector in,
+            PolygonCollector out
+    ) {
+        if (sub == null) {
+            return;
+        }
+        if (node.isLeaf()) {
+            if (in != null && node.isInside()) {
+                in.add(sub);
+            } else if (out != null && node.isOutside()) {
+                out.add(sub);
+            }
+        } else {
+            Split<? extends HyperplaneConvexSubset<Vector3D>> split = sub.split(node.getCutHyperplane());
+
+            // Continue further on down the subtree with the same subset if the
+            // subset lies directly on the current node's cut
+            if (split.getLocation() == SplitLocation.NEITHER) {
+                characterizeHyperplaneSubset(sub, node.getPlus(), in, out);
+                characterizeHyperplaneSubset(sub, node.getMinus(), in, out);
+            } else {
+                characterizeHyperplaneSubset(split.getPlus(), node.getPlus(), in, out);
+                characterizeHyperplaneSubset(split.getMinus(), node.getMinus(), in, out);
+            }
+        }
+    }
+
+    private abstract static class PolygonCollector {
+        public abstract void add(HyperplaneConvexSubset<Vector3D> f);
+    }
+
+    private static void collectPolygons(RegionNode node, List<PolygonData> polygons, Map<VectorKey, Vector3D> uniqueVertices) {
+        Color color = node.color;
+
+        HyperplaneConvexSubset<Vector3D> sub = node.getCut();
+
+        PolygonCollector insideFacingCollector = new PolygonCollector() {
+            @Override
+            public void add(HyperplaneConvexSubset<Vector3D> f) {
+                PlaneConvexSubset p = (PlaneConvexSubset) f;
+                List<Vector3D> points = getUniqueVertices(p.getVertices(), uniqueVertices);
+                Collections.reverse(points);
+                polygons.add(new PolygonData(points, color));
+            }
+        };
+        PolygonCollector outsideFacingCollector = new PolygonCollector() {
+            @Override
+            public void add(HyperplaneConvexSubset<Vector3D> f) {
+                PlaneConvexSubset p = (PlaneConvexSubset) f;
+                List<Vector3D> points = getUniqueVertices(p.getVertices(), uniqueVertices);
+                polygons.add(new PolygonData(points, color));
+            }
+        };
+        PolygonCollector minusInCollector = new PolygonCollector() {
+            @Override
+            public void add(HyperplaneConvexSubset<Vector3D> f) {
+                characterizeHyperplaneSubset(f, node.getPlus(), null, outsideFacingCollector);
+            }
+        };
+        PolygonCollector minusOutCollector = new PolygonCollector() {
+            @Override
+            public void add(HyperplaneConvexSubset<Vector3D> f) {
+                characterizeHyperplaneSubset(f, node.getPlus(), insideFacingCollector, null);
+            }
+        };
+        characterizeHyperplaneSubset(sub, node.getMinus(), minusInCollector, minusOutCollector);
+    }
+
     public static List<Triangle> collectAndTriangulate(Iterable<RegionNode> nodes, String callerStr) {
-        long start = System.currentTimeMillis();
+        SamplingProfiler.start(1); // Keep it 1ms, but now it's more accurate
+        long start = System.nanoTime();
 
         List<PolygonData> polygons = new ArrayList<>(16 * 1024);
         Map<VectorKey, Vector3D> uniqueVertices = new HashMap<>(16 * 1024);
 
         for (RegionNode nodeObj : nodes) {
-            if (!nodeObj.isInternal()) {
+            HyperplaneConvexSubset<Vector3D> cut = nodeObj.getCut();
+            if (cut == null) {
                 continue;
             }
 
-            RegionCutBoundary<Vector3D> boundary = nodeObj.getCutBoundary();
-            Color color = nodeObj.color;
-
-            Iterable<HyperplaneConvexSubset<Vector3D>> outsideFacing = boundary.getOutsideFacing();
-            for (HyperplaneConvexSubset<Vector3D> f : outsideFacing) {
-                PlaneConvexSubset p = (PlaneConvexSubset) f;
-                polygons.add(new PolygonData(
-                        getUniqueVertices(p.getVertices(), uniqueVertices),
-                        color,
-                        p.getPlane().getNormal()
-                ));
-            }
-            Iterable<HyperplaneConvexSubset<Vector3D>> insideFacing = boundary.getInsideFacing();
-            for (HyperplaneConvexSubset<Vector3D> f : insideFacing) {
-                PlaneConvexSubset p = (PlaneConvexSubset) f.reverse();
-                polygons.add(new PolygonData(
-                        getUniqueVertices(p.getVertices(), uniqueVertices),
-                        color,
-                        p.getPlane().getNormal()
-                ));
-            }
+            collectPolygons(nodeObj, polygons, uniqueVertices);
         }
 
-        long collectionDone = System.currentTimeMillis();
-        System.out.println("[" + callerStr + "] triangles: polygons collected in " + (collectionDone - start) + "ms, vertices: " + uniqueVertices.size() + ", polygons: " + polygons.size());
+        long collectionDone = System.nanoTime();
+        System.out.println("[" + callerStr + "] triangles: polygons collected in " + (collectionDone - start) / 1_000_000.0 + "ms, vertices: " + uniqueVertices.size() + ", polygons: " + polygons.size());
 
         List<Triangle> result = triangulateInternal(polygons, uniqueVertices.values(), collectionDone, callerStr);
 
-        long end = System.currentTimeMillis();
-        System.out.println("[" + callerStr + "] triangles total " + (end - start) + "ms");
+        long end = System.nanoTime();
+        System.out.println("[" + callerStr + "] triangles total " + (end - start) / 1_000_000.0 + "ms");
+
+        SamplingProfiler.stop();
 
         return result;
     }
@@ -106,18 +164,18 @@ public class BSPTreeTriangulator {
         double gridScale = calculateGridScale(allVertices);
         Map<Long, List<Vector3D>> grid = buildGrid(allVertices, gridScale);
 
-        long gridDone = System.currentTimeMillis();
-        System.out.println("[" + callerStr + "] triangles: grid built in " + (gridDone - start) + "ms");
+        long gridDone = System.nanoTime();
+        System.out.println("[" + callerStr + "] triangles: grid built in " + (gridDone - start) / 1_000_000.0 + "ms");
 
         splitEdges(polygons, grid, gridScale);
 
-        long splitDone = System.currentTimeMillis();
-        System.out.println("[" + callerStr + "] triangles: edges split in " + (splitDone - gridDone) + "ms");
+        long splitDone = System.nanoTime();
+        System.out.println("[" + callerStr + "] triangles: edges split in " + (splitDone - gridDone) / 1_000_000.0 + "ms");
 
         performTriangulation(polygons, result);
 
-        long end = System.currentTimeMillis();
-        System.out.println("[" + callerStr + "] triangles: triangulated in " + (end - splitDone) + "ms, total logic " + (end - start) + "ms");
+        long end = System.nanoTime();
+        System.out.println("[" + callerStr + "] triangles: triangulated in " + (end - splitDone) / 1_000_000.0 + "ms, total logic " + (end - start) / 1_000_000.0 + "ms");
 
         return result;
     }
@@ -158,10 +216,11 @@ public class BSPTreeTriangulator {
 
     private static void splitEdges(List<PolygonData> polygons, Map<Long, List<Vector3D>> grid, double gridScale) {
         List<Vector3D> candidates = new ArrayList<>(256);
+        List<Vector3D> newPoints = new ArrayList<>(256);
         for (PolygonData poly : polygons) {
             List<Vector3D> polyPoints = poly.points;
             int initialSize = polyPoints.size();
-            List<Vector3D> newPoints = new ArrayList<>(initialSize * 2);
+            newPoints.clear();
             for (int i = 0; i < initialSize; i++) {
                 Vector3D p1 = polyPoints.get(i);
                 Vector3D p2 = polyPoints.get((i + 1) % initialSize);
@@ -200,8 +259,7 @@ public class BSPTreeTriangulator {
                             long key = xyKey ^ (z << 40);
                             List<Vector3D> cell = grid.get(key);
                             if (cell != null) {
-                                for (int j = 0; j < cell.size(); j++) {
-                                    Vector3D v = cell.get(j);
+                                for (Vector3D v : cell) {
                                     if (v == p1 || v == p2) continue;
                                     double vx = v.getX(), vy = v.getY(), vz = v.getZ();
                                     if (vx < minX || vx > maxX || vy < minY || vy > maxY || vz < minZ || vz > maxZ)
@@ -241,7 +299,9 @@ public class BSPTreeTriangulator {
                     newPoints.addAll(candidates);
                 }
             }
-            poly.points = newPoints;
+            if (newPoints.size() < polyPoints.size()) {
+                poly.points = new ArrayList<>(newPoints);
+            }
         }
     }
 
@@ -251,14 +311,12 @@ public class BSPTreeTriangulator {
             int ptsSize = points.size();
             if (ptsSize < 3) continue;
             Vector3D p1 = points.get(0);
-            Vector3D normal = poly.normal;
             Color color = poly.color;
             for (int i = 1; i < ptsSize - 1; i++) {
                 Triangle t = new Triangle();
                 t.p1 = p1;
                 t.p2 = points.get(i);
                 t.p3 = points.get(i + 1);
-                t.norm = normal;
                 t.color = color;
                 result.add(t);
             }

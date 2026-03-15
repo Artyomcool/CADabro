@@ -8,11 +8,9 @@ import java.util.List;
 public class PolygonData {
     public List<Vector3D> points;
     public Color color;
-    public Vector3D normal;
 
-    public PolygonData(List<Vector3D> points, Color color, Vector3D normal) {
+    public PolygonData(List<Vector3D> points, Color color) {
         this.points = points;
         this.color = color;
-        this.normal = normal;
     }
 }

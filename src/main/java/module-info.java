@@ -6,4 +6,5 @@ open module CADabro.main {
     requires org.apache.commons.geometry.core;
     requires com.github.quickhull3d;
     requires java.desktop;
+    requires jdk.jfr;
 }
