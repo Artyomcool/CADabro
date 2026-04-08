@@ -23,6 +23,7 @@ import javafx.scene.shape.TriangleMesh
 
 import javafx.stage.Stage
 import models.common.CardHolder
+import models.organizer.Organizer
 
 import java.nio.file.Path
 
@@ -35,15 +36,7 @@ class CADabro extends Application {
         extrude(text(t), 1).color(color).rx(-90)
     }
 
-    RenderCollection collection = new RenderCollection().tap {
-        add(new CardHolder(89.6, 64.4, 20).tap {
-            caption = "CAPTION"
-            captionLeft = "LEFT"
-            captionRight = "RIGHT"
-        }.render()).name = "CardHolder"
-
-        //add cube(10) - cube(5)
-
+    RenderCollection collection = Organizer.render().tap {
         render txt("X", Color.RED).dx(150)
         render txt("Y", Color.BLUE).rcz(90).dy(150)
         render txt("Z", Color.GREEN).dz(150)

@@ -78,15 +78,17 @@ class CADObjects {
         if (r == 0) {
             return cube(x, y, z)
         }
+
+        def ss = sphere(r)
         return hull(
-                sphere(r).dxyz(-x/2, -y/2, -z/2),
-                sphere(r).dxyz(x/2, -y/2, -z/2),
-                sphere(r).dxyz(x/2, y/2, -z/2),
-                sphere(r).dxyz(-x/2, y/2, -z/2),
-                sphere(r).dxyz(-x/2, -y/2, z/2),
-                sphere(r).dxyz(x/2, -y/2, z/2),
-                sphere(r).dxyz(x/2, y/2, z/2),
-                sphere(r).dxyz(-x/2, y/2, z/2),
+                ss.dxyz(-x/2, -y/2, -z/2),
+                ss.dxyz(x/2, -y/2, -z/2),
+                ss.dxyz(x/2, y/2, -z/2),
+                ss.dxyz(-x/2, y/2, -z/2),
+                ss.dxyz(-x/2, -y/2, z/2),
+                ss.dxyz(x/2, -y/2, z/2),
+                ss.dxyz(x/2, y/2, z/2),
+                ss.dxyz(-x/2, y/2, z/2),
         ).dxyz(x/2, y/2, z/2)
     }
 
